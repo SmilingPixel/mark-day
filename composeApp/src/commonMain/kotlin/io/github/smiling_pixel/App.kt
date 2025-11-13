@@ -8,6 +8,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,11 +25,35 @@ import androidx.compose.ui.Modifier
 fun App() {
     MaterialTheme {
         var selected by remember { mutableStateOf(Screen.Entries) }
+        // remember previous to return from profile
+        var previous by remember { mutableStateOf(Screen.Entries) }
 
         Scaffold(
             modifier = Modifier
                 .safeContentPadding()
                 .fillMaxSize(),
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        val title = when (selected) {
+                            Screen.Entries -> "Entries"
+                            Screen.Insights -> "Insights"
+                            Screen.Profile -> "Profile"
+                        }
+                        Text(title)
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            // store current and navigate to profile
+                            previous = selected
+                            selected = Screen.Profile
+                        }) {
+                            // Use a simple emoji avatar to avoid platform icon dependencies
+                            Text("👤")
+                        }
+                    }
+                )
+            },
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(
@@ -49,10 +75,11 @@ fun App() {
                 when (selected) {
                     Screen.Entries -> EntriesScreen()
                     Screen.Insights -> InsightsScreen()
+                    Screen.Profile -> ProfileScreen(onBack = { selected = previous })
                 }
             }
         }
     }
 }
 
-private enum class Screen { Entries, Insights }
+private enum class Screen { Entries, Insights, Profile }
