@@ -55,6 +55,12 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
         }
+        androidMain.dependencies {
+            // Room for Android target only
+            implementation("androidx.room:room-runtime")
+            implementation("androidx.room:room-ktx")
+            // Room compiler will be required (ksp) for annotation processing on Android - configure if you enable KSP
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

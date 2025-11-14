@@ -1,5 +1,7 @@
 package io.github.smiling_pixel
 
+import io.github.smiling_pixel.model.DiaryEntry
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer

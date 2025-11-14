@@ -1,5 +1,8 @@
 package io.github.smiling_pixel
 
+import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.model.sampleEntries
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
