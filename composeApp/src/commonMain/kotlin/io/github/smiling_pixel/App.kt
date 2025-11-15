@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun App() {
+fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) {
     MaterialTheme {
         var selected by remember { mutableStateOf(Screen.Entries) }
         // remember previous to return from profile
@@ -73,7 +73,9 @@ fun App() {
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding).fillMaxSize(), contentAlignment = Alignment.Center) {
                 when (selected) {
-                    Screen.Entries -> EntriesScreen()
+                    Screen.Entries -> {
+                        if (providedRepo != null) EntriesScreen(providedRepo) else EntriesScreen()
+                    }
                     Screen.Insights -> InsightsScreen()
                     Screen.Profile -> ProfileScreen(onBack = { selected = previous })
                 }

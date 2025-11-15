@@ -29,11 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun EntriesScreen() {
-    // Repository backed by an in-memory DAO for non-Android targets / testing.
-    val repo = remember { DiaryRepository(InMemoryDiaryDao(sampleEntries)) }
+fun EntriesScreen(repo: DiaryRepository) {
     val entriesState by repo.entries.collectAsState()
-    val scope = rememberCoroutineScope()
 
     // currently-selected entry; null means list view
     val selected = remember { mutableStateOf<DiaryEntry?>(null) }
@@ -68,5 +65,11 @@ fun EntriesScreen() {
             EntryDetailsScreen(entry = selected.value!!, onBack = { selected.value = null })
         }
     }
+}
+
+@Composable
+fun EntriesScreen() {
+    val repo = remember { DiaryRepository(InMemoryDiaryDao(sampleEntries)) }
+    EntriesScreen(repo)
 }
 
