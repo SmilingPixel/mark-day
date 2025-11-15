@@ -2,6 +2,12 @@ package io.github.smiling_pixel
 
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.sampleEntries
+import io.github.smiling_pixel.database.DiaryRepository
+import io.github.smiling_pixel.database.InMemoryDiaryDao
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +30,11 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun EntriesScreen() {
+    // Repository backed by an in-memory DAO for non-Android targets / testing.
+    val repo = remember { DiaryRepository(InMemoryDiaryDao(sampleEntries)) }
+    val entriesState by repo.entries.collectAsState()
+    val scope = rememberCoroutineScope()
+
     // currently-selected entry; null means list view
     val selected = remember { mutableStateOf<DiaryEntry?>(null) }
 
@@ -36,7 +47,7 @@ fun EntriesScreen() {
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(sampleEntries, key = { it.id }) { entry ->
+                items(entriesState, key = { it.id }) { entry ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
