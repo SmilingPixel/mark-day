@@ -17,16 +17,33 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.serialization.Serializable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+
+@Serializable
+sealed interface AppRoute
+
+@Serializable
+object EntriesRoute : AppRoute
+
+@Serializable
+object InsightsRoute : AppRoute
+
+@Serializable
+object ProfileRoute : AppRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) {
     MaterialTheme {
-        var selected by remember { mutableStateOf(Screen.Entries) }
+        val navController = rememberNavController()
+        var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
         // remember previous to return from profile
-        var previous by remember { mutableStateOf(Screen.Entries) }
+        var previous by remember { mutableStateOf<AppRoute>(EntriesRoute) }
 
         Scaffold(
             modifier = Modifier
@@ -36,17 +53,18 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                 CenterAlignedTopAppBar(
                     title = {
                         val title = when (selected) {
-                            Screen.Entries -> "Entries"
-                            Screen.Insights -> "Insights"
-                            Screen.Profile -> "Profile"
+                            EntriesRoute -> "Entries"
+                            InsightsRoute -> "Insights"
+                            ProfileRoute -> "Profile"
+                            else -> ""
                         }
                         Text(title)
                     },
                     actions = {
                         IconButton(onClick = {
-                            // store current and navigate to profile
                             previous = selected
-                            selected = Screen.Profile
+                            selected = ProfileRoute
+                            navController.navigate(ProfileRoute)
                         }) {
                             // Use a simple emoji avatar to avoid platform icon dependencies
                             Text("👤")
@@ -57,14 +75,20 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(
-                        selected = selected == Screen.Entries,
-                        onClick = { selected = Screen.Entries },
+                        selected = selected == EntriesRoute,
+                        onClick = {
+                            selected = EntriesRoute
+                            navController.navigate(EntriesRoute)
+                        },
                         icon = { Text("E") },
                         label = { Text("Entries") }
                     )
                     NavigationBarItem(
-                        selected = selected == Screen.Insights,
-                        onClick = { selected = Screen.Insights },
+                        selected = selected == InsightsRoute,
+                        onClick = {
+                            selected = InsightsRoute
+                            navController.navigate(InsightsRoute)
+                        },
                         icon = { Text("I") },
                         label = { Text("Insights") }
                     )
@@ -72,16 +96,22 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
             }
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                when (selected) {
-                    Screen.Entries -> {
+                NavHost(navController = navController, startDestination = EntriesRoute) {
+                    composable<EntriesRoute> {
                         if (providedRepo != null) EntriesScreen(providedRepo) else EntriesScreen()
                     }
-                    Screen.Insights -> InsightsScreen()
-                    Screen.Profile -> ProfileScreen(onBack = { selected = previous })
+                    composable<InsightsRoute> {
+                        InsightsScreen()
+                    }
+                    composable<ProfileRoute> { backStackEntry ->
+                        ProfileScreen(onBack = {
+                            // return to previous selection when profile is dismissed
+                            selected = previous
+                            navController.popBackStack()
+                        })
+                    }
                 }
             }
         }
     }
 }
-
-private enum class Screen { Entries, Insights, Profile }

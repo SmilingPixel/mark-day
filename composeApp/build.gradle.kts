@@ -8,7 +8,11 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
+    alias(libs.plugins.kotlinSerialization)
 }
+// Note: KSP plugin should be applied at the project/pluginManagement level
+// if you want to enable annotation processing. Configure KSP with a version
+// compatible with your Kotlin version (see notes).
 
 kotlin {
     androidTarget {
@@ -54,12 +58,15 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            // Navigation for Compose Multiplatform
+            implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.1")
+            // Kotlinx serialization (used by typed navigation routes)
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0")
         }
         androidMain.dependencies {
             // Room for Android target only
             implementation("androidx.room:room-runtime")
             implementation("androidx.room:room-ktx")
-            // Room compiler will be required (ksp) for annotation processing on Android - configure if you enable KSP
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
