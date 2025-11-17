@@ -1,7 +1,6 @@
 package io.github.smiling_pixel
 
 import io.github.smiling_pixel.model.DiaryEntry
-import io.github.smiling_pixel.model.sampleEntries
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import kotlinx.coroutines.launch
@@ -69,7 +68,9 @@ fun EntriesScreen(repo: DiaryRepository) {
 
 @Composable
 fun EntriesScreen() {
-    val repo = remember { DiaryRepository(InMemoryDiaryDao(sampleEntries)) }
+    // Initialize an in-memory DAO with no hardcoded entries; repository will
+    // observe the DAO and load any persisted entries when available.
+    val repo = remember { DiaryRepository(InMemoryDiaryDao()) }
     EntriesScreen(repo)
 }
 
