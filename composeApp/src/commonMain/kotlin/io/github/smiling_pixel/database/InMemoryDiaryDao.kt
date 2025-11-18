@@ -1,6 +1,7 @@
 package io.github.smiling_pixel.database
 
 import io.github.smiling_pixel.model.DiaryEntry
+import kotlinx.datetime.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -16,7 +17,10 @@ class InMemoryDiaryDao(initial: List<DiaryEntry> = emptyList()) : IDiaryDao {
     override suspend fun getAll(): List<DiaryEntry> = state.value
 
     override suspend fun insert(entry: DiaryEntry) {
-        state.value = state.value + entry
+        // update the `updatedAt` timestamp on insert to mark the latest change
+        val now = Clock.System.now()
+        val e = entry.copy(updatedAt = now)
+        state.value = state.value + e
     }
 
     override suspend fun delete(entry: DiaryEntry) {
