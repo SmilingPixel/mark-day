@@ -4,6 +4,8 @@ import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,6 +56,11 @@ fun EntriesScreen(repo: DiaryRepository) {
                                 text = entry.title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
+                            )
+                            val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
+                            Text(
+                                text = "Updated: ${updatedLocal.date} ${updatedLocal.time}",
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }

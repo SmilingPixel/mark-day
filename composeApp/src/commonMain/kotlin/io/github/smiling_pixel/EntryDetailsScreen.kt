@@ -1,6 +1,8 @@
 package io.github.smiling_pixel
 
 import io.github.smiling_pixel.model.DiaryEntry
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +39,23 @@ fun EntryDetailsScreen(entry: DiaryEntry, onBack: () -> Unit) {
                 Text("Back")
             }
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        // show timestamps
+        val createdLocal = entry.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
+        val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
+
+        Text(
+            text = "Created: ${createdLocal.date} ${createdLocal.time}",
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = "Updated: ${updatedLocal.date} ${updatedLocal.time}",
+            style = MaterialTheme.typography.bodySmall,
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 
