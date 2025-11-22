@@ -16,11 +16,20 @@ class InMemoryDiaryDao(initial: List<DiaryEntry> = emptyList()) : IDiaryDao {
 
     override suspend fun getAll(): List<DiaryEntry> = state.value
 
-    override suspend fun insert(entry: DiaryEntry) {
+    override suspend fun insert(entry: DiaryEntry): Int {
         // update the `updatedAt` timestamp on insert to mark the latest change
         val now = Clock.System.now()
-        val e = entry.copy(updatedAt = now)
+        // Generate ID if 0
+        val newId = if (entry.id == 0) (state.value.maxOfOrNull { it.id } ?: 0) + 1 else entry.id
+        val e = entry.copy(id = newId, updatedAt = now)
         state.value = state.value + e
+        return newId
+    }
+
+    override suspend fun update(entry: DiaryEntry) {
+        val now = Clock.System.now()
+        val updated = entry.copy(updatedAt = now)
+        state.value = state.value.map { if (it.id == entry.id) updated else it }
     }
 
     override suspend fun delete(entry: DiaryEntry) {

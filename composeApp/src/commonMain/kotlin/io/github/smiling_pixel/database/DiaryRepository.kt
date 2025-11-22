@@ -33,10 +33,15 @@ class DiaryRepository(
         }
     }
 
-    suspend fun insert(entry: DiaryEntry) {
-        dao.insert(entry)
+    suspend fun insert(entry: DiaryEntry): Int {
+        val id = dao.insert(entry)
         // If DAO is flow-backed, the collector will update _entries automatically.
         // For non-flow DAOs the repository initial load above ensures consistency.
+        return id
+    }
+
+    suspend fun update(entry: DiaryEntry) {
+        dao.update(entry)
     }
 
     suspend fun delete(entry: DiaryEntry) {
