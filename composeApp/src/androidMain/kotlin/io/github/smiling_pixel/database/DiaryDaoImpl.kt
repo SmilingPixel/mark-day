@@ -29,10 +29,23 @@ class DiaryDaoImpl(private val roomDao: DiaryRoomDao) : IDiaryDao {
         )
     }
 
-    override suspend fun insert(entry: DiaryEntry) {
+    override suspend fun insert(entry: DiaryEntry): Int {
         // Insert using Room; Room will emit updated Flow with assigned id.
         // convert Instant timestamps to epoch millis for Room
-        roomDao.insert(
+        val id = roomDao.insert(
+            RoomDiaryEntry(
+                entry.id,
+                entry.title,
+                entry.content,
+                createdAt = entry.createdAt.toEpochMilliseconds(),
+                updatedAt = entry.updatedAt.toEpochMilliseconds(),
+            )
+        )
+        return id.toInt()
+    }
+
+    override suspend fun update(entry: DiaryEntry) {
+        roomDao.update(
             RoomDiaryEntry(
                 entry.id,
                 entry.title,

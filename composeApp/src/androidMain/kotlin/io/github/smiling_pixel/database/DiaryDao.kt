@@ -3,6 +3,7 @@ package io.github.smiling_pixel.database
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.Update
 import androidx.room.Query
 import io.github.smiling_pixel.model.RoomDiaryEntry
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +18,9 @@ interface DiaryRoomDao {
 
     @Insert
     suspend fun insert(entry: RoomDiaryEntry): Long
+
+    @Update
+    suspend fun update(entry: RoomDiaryEntry)
 
     @Delete
     suspend fun delete(entry: RoomDiaryEntry)
