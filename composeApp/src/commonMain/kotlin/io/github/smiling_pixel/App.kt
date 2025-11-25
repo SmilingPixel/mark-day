@@ -34,6 +34,9 @@ object EntriesRoute : AppRoute
 object InsightsRoute : AppRoute
 
 @Serializable
+object SettingsRoute : AppRoute
+
+@Serializable
 object ProfileRoute : AppRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +58,7 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                         val title = when (selected) {
                             EntriesRoute -> "Entries"
                             InsightsRoute -> "Insights"
+                            SettingsRoute -> "Settings"
                             ProfileRoute -> "Profile"
                             else -> ""
                         }
@@ -92,6 +96,15 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                         icon = { Text("I") },
                         label = { Text("Insights") }
                     )
+                    NavigationBarItem(
+                        selected = selected == SettingsRoute,
+                        onClick = {
+                            selected = SettingsRoute
+                            navController.navigate(SettingsRoute)
+                        },
+                        icon = { Text("S") },
+                        label = { Text("Settings") }
+                    )
                 }
             }
         ) { innerPadding ->
@@ -102,6 +115,9 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                     }
                     composable<InsightsRoute> {
                         InsightsScreen()
+                    }
+                    composable<SettingsRoute> {
+                        SettingsScreen()
                     }
                     composable<ProfileRoute> { backStackEntry ->
                         ProfileScreen(onBack = {
