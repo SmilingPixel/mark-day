@@ -36,8 +36,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.Alignment
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun EntriesScreen(repo: DiaryRepository) {
+fun EntriesScreen(
+    repo: DiaryRepository,
+    isSelectionMode: Boolean,
+    selectedIds: Set<Int>,
+    onSelectionModeChange: (Boolean) -> Unit,
+    onSelectionChange: (Set<Int>) -> Unit
+) {
     val entriesState by repo.entries.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -70,11 +83,13 @@ fun EntriesScreen(repo: DiaryRepository) {
         // List view
         Scaffold(
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { isCreating = true },
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
+                if (!isSelectionMode) {
+                    FloatingActionButton(
+                        onClick = { isCreating = true },
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
+                    }
                 }
             }
         ) { paddingValues ->
@@ -86,22 +101,52 @@ fun EntriesScreen(repo: DiaryRepository) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(entriesState, key = { it.id }) { entry ->
+                    val isSelected = entry.id in selectedIds
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedEntry = entry },
+                            .combinedClickable(
+                                onClick = {
+                                    if (isSelectionMode) {
+                                        val newSelection = if (isSelected) selectedIds - entry.id else selectedIds + entry.id
+                                        onSelectionChange(newSelection)
+                                        if (newSelection.isEmpty()) {
+                                            onSelectionModeChange(false)
+                                        }
+                                    } else {
+                                        selectedEntry = entry
+                                    }
+                                },
+                                onLongClick = {
+                                    if (!isSelectionMode) {
+                                        onSelectionModeChange(true)
+                                        onSelectionChange(setOf(entry.id))
+                                    }
+                                }
+                            ),
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = entry.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
-                            Text(
-                                text = "Updated: ${updatedLocal.date} ${updatedLocal.time}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            if (isSelectionMode) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = null // Handled by card click
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = entry.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
+                                Text(
+                                    text = "Updated: ${updatedLocal.date} ${updatedLocal.time}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                         }
                     }
                 }
@@ -110,11 +155,4 @@ fun EntriesScreen(repo: DiaryRepository) {
     }
 }
 
-@Composable
-fun EntriesScreen() {
-    // Initialize an in-memory DAO with no hardcoded entries; repository will
-    // observe the DAO and load any persisted entries when available.
-    val repo = remember { DiaryRepository(InMemoryDiaryDao()) }
-    EntriesScreen(repo)
-}
 
