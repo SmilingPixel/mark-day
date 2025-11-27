@@ -105,7 +105,6 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                                 InsightsRoute -> "Insights"
                                 SettingsRoute -> "Settings"
                                 ProfileRoute -> "Profile"
-                                else -> ""
                             }
                             Text(title)
                         },

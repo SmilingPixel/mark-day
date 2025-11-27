@@ -41,8 +41,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.Alignment
+import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalTime::class)
 @Composable
 fun EntriesScreen(
     repo: DiaryRepository,

@@ -2,7 +2,7 @@ package io.github.smiling_pixel.database
 
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.RoomDiaryEntry
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

@@ -1,7 +1,7 @@
 package io.github.smiling_pixel.database
 
 import io.github.smiling_pixel.model.DiaryEntry
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * Simple in-memory DAO implementation for commonMain/testing.
  * Uses a MutableStateFlow to provide reactive updates.
  */
+@OptIn(kotlin.time.ExperimentalTime::class)
 class InMemoryDiaryDao(initial: List<DiaryEntry> = emptyList()) : IDiaryDao {
     private val state = MutableStateFlow(initial.toList())
 

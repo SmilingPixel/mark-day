@@ -60,6 +60,9 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             // Navigation for Compose Multiplatform
             implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.1")
+            implementation("org.jetbrains.compose.material:material:1.9.3")
+            implementation("org.jetbrains.compose.material:material-icons-core:1.7.3")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
             // Kotlinx serialization (used by typed navigation routes)
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0")
         }
