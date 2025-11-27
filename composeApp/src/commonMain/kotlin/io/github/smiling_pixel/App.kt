@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -109,13 +110,14 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                             Text(title)
                         },
                         actions = {
-                            IconButton(onClick = {
-                                previous = selected
-                                selected = ProfileRoute
-                                navController.navigate(ProfileRoute)
-                            }) {
-                                // Use a simple emoji avatar to avoid platform icon dependencies
-                                Text("👤")
+                            if (selected != ProfileRoute) {
+                                IconButton(onClick = {
+                                    previous = selected
+                                    selected = ProfileRoute
+                                    navController.navigate(ProfileRoute)
+                                }) {
+                                    Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
+                                }
                             }
                         }
                     )
