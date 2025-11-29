@@ -1,5 +1,6 @@
 package io.github.smiling_pixel.client
 
+import io.github.smiling_pixel.model.IntervalWeatherInfo
 import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.model.WeatherInfo
 import io.ktor.client.HttpClient
@@ -8,6 +9,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -35,9 +37,6 @@ class GoogleWeatherClient(
 ) : WeatherClient {
 
     override suspend fun getWeather(location: Location): WeatherInfo {
-        // Hypothetical endpoint based on standard Google API patterns.
-        // Adjust the URL if the specific API version or path differs.
-        // Example: https://weather.googleapis.com/v1/currentConditions
         val url = "https://weather.googleapis.com/v1/currentConditions"
         
         try {
@@ -52,6 +51,37 @@ class GoogleWeatherClient(
         } catch (e: Exception) {
             // Wrap and rethrow or handle specific errors
             throw Exception("Failed to fetch weather data: ${e.message}", e)
+        }
+    }
+
+    override suspend fun getHourlyForecast(location: Location): List<IntervalWeatherInfo> {
+        val url = "https://weather.googleapis.com/v1/forecast/hours:lookup"
+        try {
+            val response: GoogleHourlyForecastResponse = httpClient.get(url) {
+                parameter("key", apiKey)
+                parameter("location.latitude", location.latitude)
+                parameter("location.longitude", location.longitude)
+                parameter("units", "metric")
+                // parameter("hours", 24) // Default is 24
+            }.body()
+            return response.forecastHours.map { it.toIntervalWeatherInfo() }
+        } catch (e: Exception) {
+            throw Exception("Failed to fetch hourly forecast: ${e.message}", e)
+        }
+    }
+
+    override suspend fun getHourlyHistory(location: Location, start: Instant, end: Instant): List<IntervalWeatherInfo> {
+        val url = "https://weather.googleapis.com/v1/history/hours:lookup"
+        try {
+            val response: GoogleHourlyHistoryResponse = httpClient.get(url) {
+                parameter("key", apiKey)
+                parameter("location.latitude", location.latitude)
+                parameter("location.longitude", location.longitude)
+                parameter("units", "metric")
+            }.body()
+            return response.historyHours.map { it.toIntervalWeatherInfo() }
+        } catch (e: Exception) {
+            throw Exception("Failed to fetch hourly history: ${e.message}", e)
         }
     }
 }
@@ -71,6 +101,69 @@ private data class GoogleWeatherResponse(
         )
     }
 }
+
+@Serializable
+private data class GoogleHourlyForecastResponse(
+    @SerialName("forecastHours") val forecastHours: List<HourlyItem>
+)
+
+@Serializable
+private data class GoogleHourlyHistoryResponse(
+    @SerialName("historyHours") val historyHours: List<HourlyItem>
+)
+
+@Serializable
+private data class HourlyItem(
+    @SerialName("interval") val interval: Interval,
+    @SerialName("temperature") val temperature: TemperatureData,
+    @SerialName("weatherCondition") val weatherCondition: WeatherConditionData,
+    @SerialName("relativeHumidity") val relativeHumidity: Int,
+    @SerialName("wind") val wind: WindData
+) {
+    fun toIntervalWeatherInfo(): IntervalWeatherInfo {
+        return IntervalWeatherInfo(
+            startTime = Instant.parse(interval.startTime),
+            endTime = Instant.parse(interval.endTime),
+            minTemperature = temperature.degrees,
+            maxTemperature = temperature.degrees,
+            condition = weatherCondition.description.text,
+            humidity = relativeHumidity,
+            windSpeed = wind.speed.value,
+            iconUrl = null
+        )
+    }
+}
+
+@Serializable
+private data class Interval(
+    @SerialName("startTime") val startTime: String,
+    @SerialName("endTime") val endTime: String
+)
+
+@Serializable
+private data class TemperatureData(
+    @SerialName("degrees") val degrees: Double
+)
+
+@Serializable
+private data class WeatherConditionData(
+    @SerialName("description") val description: DescriptionData
+)
+
+@Serializable
+private data class DescriptionData(
+    @SerialName("text") val text: String
+)
+
+@Serializable
+private data class WindData(
+    @SerialName("speed") val speed: SpeedData
+)
+
+@Serializable
+private data class SpeedData(
+    @SerialName("value") val value: Double
+)
 
 @Serializable
 private data class CurrentConditions(

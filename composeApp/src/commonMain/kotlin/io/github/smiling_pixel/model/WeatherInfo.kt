@@ -1,5 +1,6 @@
 package io.github.smiling_pixel.model
 
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 
 /**
@@ -19,6 +20,30 @@ data class WeatherInfo(
     val humidity: Int,
     val windSpeed: Double,
     val locationName: String,
+    val iconUrl: String? = null
+)
+
+/**
+ * Represents weather information for a specific time interval.
+ *
+ * @property startTime The start time of the interval.
+ * @property endTime The end time of the interval.
+ * @property minTemperature The minimum temperature in Celsius.
+ * @property maxTemperature The maximum temperature in Celsius.
+ * @property condition The weather condition.
+ * @property humidity The humidity percentage.
+ * @property windSpeed The wind speed in km/h.
+ * @property iconUrl The URL of the weather icon, if available.
+ */
+@Serializable
+data class IntervalWeatherInfo(
+    val startTime: Instant,
+    val endTime: Instant,
+    val minTemperature: Double,
+    val maxTemperature: Double,
+    val condition: String,
+    val humidity: Int,
+    val windSpeed: Double,
     val iconUrl: String? = null
 )
 
