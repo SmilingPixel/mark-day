@@ -80,6 +80,7 @@ fun EntryDetailsScreen(
                         updatedAt = now
                     )
                     onSave(newEntry)
+                    isEditing = false
                 }) {
                     Text("Save")
                 }
