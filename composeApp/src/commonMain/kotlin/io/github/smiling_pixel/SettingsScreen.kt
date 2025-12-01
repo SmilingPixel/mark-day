@@ -11,8 +11,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import io.github.smiling_pixel.preference.getSettingsRepository
+import kotlinx.coroutines.launch
+
 @Composable
 fun SettingsScreen() {
+    val scope = rememberCoroutineScope()
+    val settingsRepository = getSettingsRepository()
+    val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -22,6 +34,25 @@ fun SettingsScreen() {
             text = "Settings",
             style = MaterialTheme.typography.headlineMedium
         )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "Third-party Services",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = apiKey ?: "",
+            onValueChange = { newKey ->
+                scope.launch {
+                    settingsRepository.setGoogleWeatherApiKey(newKey)
+                }
+            },
+            label = { Text("Google Weather API Key") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
         Spacer(modifier = Modifier.height(24.dp))
         
         Text(

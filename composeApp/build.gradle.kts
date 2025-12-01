@@ -70,15 +70,27 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
         }
+        
+        val nonWebMain by creating {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(libs.androidx.datastore.preferences.core)
+            }
+        }
+
         androidMain.dependencies {
             // Room for Android target only
             implementation("androidx.room:room-runtime")
             implementation("androidx.room:room-ktx")
             implementation(libs.ktor.client.okhttp)
         }
+        androidMain.dependsOn(nonWebMain)
+
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
+        iosMain.dependsOn(nonWebMain)
+
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
@@ -87,6 +99,8 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.ktor.client.java)
         }
+        jvmMain.dependsOn(nonWebMain)
+
         jsMain.dependencies {
             implementation(libs.ktor.client.js)
         }
