@@ -33,6 +33,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
+import io.github.smiling_pixel.client.MockWeatherClient
+import io.github.smiling_pixel.client.WeatherClient
 
 @Serializable
 sealed interface AppRoute
@@ -54,6 +56,7 @@ object ProfileRoute : AppRoute
 fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) {
     MaterialTheme {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
+        val weatherClient = remember { MockWeatherClient() } // TODO: Replace with real implementation @SmilingPixel
         val scope = rememberCoroutineScope()
         val navController = rememberNavController()
         var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
@@ -160,6 +163,7 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                     composable<EntriesRoute> {
                         EntriesScreen(
                             repo = repo,
+                            weatherClient = weatherClient,
                             isSelectionMode = isSelectionMode,
                             selectedIds = selectedIds,
                             onSelectionModeChange = { isSelectionMode = it },

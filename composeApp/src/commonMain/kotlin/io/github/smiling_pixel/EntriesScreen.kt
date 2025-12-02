@@ -1,6 +1,7 @@
 package io.github.smiling_pixel
 
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import kotlinx.coroutines.launch
@@ -49,6 +50,7 @@ import kotlin.time.ExperimentalTime
 @Composable
 fun EntriesScreen(
     repo: DiaryRepository,
+    weatherClient: WeatherClient,
     isSelectionMode: Boolean,
     selectedIds: Set<Int>,
     onSelectionModeChange: (Boolean) -> Unit,
@@ -65,6 +67,7 @@ fun EntriesScreen(
         // Details view (New or Edit)
         EntryDetailsScreen(
             entry = selectedEntry,
+            weatherClient = weatherClient,
             onSave = { entry ->
                 scope.launch {
                     if (isCreating) {

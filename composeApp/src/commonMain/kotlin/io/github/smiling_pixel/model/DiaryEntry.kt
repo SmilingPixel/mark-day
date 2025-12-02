@@ -13,4 +13,7 @@ data class DiaryEntry(
     val createdAt: Instant = Clock.System.now(),
     @OptIn(ExperimentalTime::class)
     val updatedAt: Instant = createdAt,
+    val weatherCondition: String? = null,
+    val minTemperature: Double? = null,
+    val maxTemperature: Double? = null,
 )
