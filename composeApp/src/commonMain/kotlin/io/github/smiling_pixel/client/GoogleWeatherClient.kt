@@ -3,12 +3,14 @@ package io.github.smiling_pixel.client
 import io.github.smiling_pixel.model.IntervalWeatherInfo
 import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.model.WeatherInfo
+import io.github.smiling_pixel.preference.SettingsRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -20,11 +22,11 @@ import kotlinx.serialization.json.Json
  * Note: The endpoint and response structure are based on the Google Maps Platform Weather API documentation.
  * Please ensure the API key has the necessary permissions.
  *
- * @property apiKey The API key for accessing Google Maps Platform.
+ * @property settingsRepository The repository to fetch the API key.
  * @property httpClient The Ktor HttpClient to use for requests.
  */
 class GoogleWeatherClient(
-    private val apiKey: String,
+    private val settingsRepository: SettingsRepository,
     private val httpClient: HttpClient = HttpClient {
         install(ContentNegotiation) {
             json(Json {
@@ -36,7 +38,13 @@ class GoogleWeatherClient(
     }
 ) : WeatherClient {
 
+    private suspend fun getApiKey(): String {
+        return settingsRepository.googleWeatherApiKey.first()
+            ?: throw IllegalStateException("Google Weather API Key not set")
+    }
+
     override suspend fun getWeather(location: Location): WeatherInfo {
+        val apiKey = getApiKey()
         val url = "https://weather.googleapis.com/v1/currentConditions"
         
         try {
@@ -55,6 +63,7 @@ class GoogleWeatherClient(
     }
 
     override suspend fun getHourlyForecast(location: Location): List<IntervalWeatherInfo> {
+        val apiKey = getApiKey()
         val url = "https://weather.googleapis.com/v1/forecast/hours:lookup"
         try {
             val response: GoogleHourlyForecastResponse = httpClient.get(url) {
@@ -71,6 +80,7 @@ class GoogleWeatherClient(
     }
 
     override suspend fun getHourlyHistory(location: Location, start: Instant, end: Instant): List<IntervalWeatherInfo> {
+        val apiKey = getApiKey()
         val url = "https://weather.googleapis.com/v1/history/hours:lookup"
         try {
             val response: GoogleHourlyHistoryResponse = httpClient.get(url) {
