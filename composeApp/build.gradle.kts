@@ -45,6 +45,9 @@ kotlin {
     }
     
     sourceSets {
+        all {
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+        }
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
@@ -72,6 +75,10 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
         }
         
+        val webMain by creating {
+            dependsOn(commonMain.get())
+        }
+
         val nonWebMain by creating {
             dependsOn(commonMain.get())
             dependencies {
@@ -85,12 +92,12 @@ kotlin {
             implementation("androidx.room:room-ktx")
             implementation(libs.ktor.client.okhttp)
         }
-        androidMain.dependsOn(nonWebMain)
+        androidMain.get().dependsOn(nonWebMain)
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
-        iosMain.dependsOn(nonWebMain)
+        iosMain.get().dependsOn(nonWebMain)
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -100,14 +107,17 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.ktor.client.java)
         }
-        jvmMain.dependsOn(nonWebMain)
+        jvmMain.get().dependsOn(nonWebMain)
 
         jsMain.dependencies {
             implementation(libs.ktor.client.js)
         }
+        jsMain.get().dependsOn(webMain)
+
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
         }
+        wasmJsMain.get().dependsOn(webMain)
     }
 }
 
