@@ -148,9 +148,8 @@ fun EntriesScreen(
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                 )
-                                val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
                                 Text(
-                                    text = "Updated: ${updatedLocal.date} ${updatedLocal.time}",
+                                    text = "Date: ${entry.entryDate}",
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }

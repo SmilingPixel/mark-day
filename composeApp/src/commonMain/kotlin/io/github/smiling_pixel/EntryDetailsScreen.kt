@@ -9,8 +9,11 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.Instant
 import kotlinx.coroutines.launch
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,7 +24,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,7 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalMaterial3Api::class)
 @Composable
 fun EntryDetailsScreen(
     entry: DiaryEntry?,
@@ -54,10 +62,38 @@ fun EntryDetailsScreen(
     var isEditing by remember { mutableStateOf(entry == null) }
     var title by remember { mutableStateOf(entry?.title ?: "") }
     var content by remember { mutableStateOf(entry?.content ?: "") }
+    var entryDate by remember { mutableStateOf(entry?.entryDate ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date) }
+    var showDatePicker by remember { mutableStateOf(false) }
     
     var weatherCondition by remember { mutableStateOf(entry?.weatherCondition ?: "") }
     var minTemp by remember { mutableStateOf(entry?.minTemperature) }
     var maxTemp by remember { mutableStateOf(entry?.maxTemperature) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = entryDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        entryDate = Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.UTC).date
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -80,6 +116,7 @@ fun EntryDetailsScreen(
                         isEditing = false
                         title = entry.title
                         content = entry.content
+                        entryDate = entry.entryDate
                         weatherCondition = entry.weatherCondition ?: ""
                         minTemp = entry.minTemperature
                         maxTemp = entry.maxTemperature
@@ -93,6 +130,7 @@ fun EntryDetailsScreen(
                         title = title,
                         content = content,
                         updatedAt = now,
+                        entryDate = entryDate,
                         weatherCondition = weatherCondition,
                         minTemperature = minTemp,
                         maxTemperature = maxTemp
@@ -102,6 +140,7 @@ fun EntryDetailsScreen(
                         content = content,
                         createdAt = now,
                         updatedAt = now,
+                        entryDate = entryDate,
                         weatherCondition = weatherCondition,
                         minTemperature = minTemp,
                         maxTemperature = maxTemp
@@ -137,6 +176,23 @@ fun EntryDetailsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.headlineMedium
             )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true }
+                    .padding(vertical = 8.dp)
+            ) {
+                Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Date: $entryDate",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
             
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(thickness = 1.dp, color = Color.Gray)
@@ -219,6 +275,14 @@ fun EntryDetailsScreen(
             // show timestamps
             val createdLocal = entry!!.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
             val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
+
+            Text(
+                text = "Date: ${entry.entryDate}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = "Created: ${createdLocal.date} ${createdLocal.time}",
