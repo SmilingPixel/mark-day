@@ -3,6 +3,7 @@ package io.github.smiling_pixel.database
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.RoomDiaryEntry
 import kotlin.time.Instant
+import kotlinx.datetime.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -15,6 +16,7 @@ class DiaryDaoImpl(private val roomDao: DiaryRoomDao) : IDiaryDao {
                 re.content,
                 createdAt = Instant.fromEpochMilliseconds(re.createdAt),
                 updatedAt = Instant.fromEpochMilliseconds(re.updatedAt),
+                entryDate = LocalDate.fromEpochDays(re.entryDate.toInt())
             )
         }
     }
@@ -26,6 +28,7 @@ class DiaryDaoImpl(private val roomDao: DiaryRoomDao) : IDiaryDao {
             re.content,
             createdAt = Instant.fromEpochMilliseconds(re.createdAt),
             updatedAt = Instant.fromEpochMilliseconds(re.updatedAt),
+            entryDate = LocalDate.fromEpochDays(re.entryDate.toInt())
         )
     }
 
@@ -39,6 +42,7 @@ class DiaryDaoImpl(private val roomDao: DiaryRoomDao) : IDiaryDao {
                 entry.content,
                 createdAt = entry.createdAt.toEpochMilliseconds(),
                 updatedAt = entry.updatedAt.toEpochMilliseconds(),
+                entryDate = entry.entryDate.toEpochDays().toLong()
             )
         )
         return id.toInt()
@@ -52,6 +56,7 @@ class DiaryDaoImpl(private val roomDao: DiaryRoomDao) : IDiaryDao {
                 entry.content,
                 createdAt = entry.createdAt.toEpochMilliseconds(),
                 updatedAt = entry.updatedAt.toEpochMilliseconds(),
+                entryDate = entry.entryDate.toEpochDays().toLong()
             )
         )
     }
@@ -64,6 +69,7 @@ class DiaryDaoImpl(private val roomDao: DiaryRoomDao) : IDiaryDao {
                 entry.content,
                 createdAt = entry.createdAt.toEpochMilliseconds(),
                 updatedAt = entry.updatedAt.toEpochMilliseconds(),
+                entryDate = entry.entryDate.toEpochDays().toLong()
             )
         )
     }

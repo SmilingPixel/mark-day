@@ -11,4 +11,5 @@ data class RoomDiaryEntry(
     // store timestamps as epoch milliseconds for Room persistence
     val createdAt: Long,
     val updatedAt: Long,
+    val entryDate: Long, // epoch days
 )
