@@ -3,7 +3,7 @@ package io.github.smiling_pixel.client
 import io.github.smiling_pixel.model.IntervalWeatherInfo
 import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.model.WeatherInfo
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 class MockWeatherClient : WeatherClient {
     override suspend fun getWeather(location: Location): WeatherInfo {

@@ -1,6 +1,6 @@
 package io.github.smiling_pixel.model
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.Serializable
 
 /**
