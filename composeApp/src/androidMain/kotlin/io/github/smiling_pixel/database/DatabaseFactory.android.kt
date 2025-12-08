@@ -1,13 +1,15 @@
 package io.github.smiling_pixel.database
 
 import android.content.Context
+import androidx.room.Room
 
-/**
- * Helper to create an Android-backed `IDiaryDao` from an Android `Context`.
- * This is not an `expect/actual` pairing; it's an Android-only helper that
- * callers on Android can invoke to obtain a ready-to-use DAO.
- */
-fun createAndroidDiaryDao(context: Context): IDiaryDao {
-    val db = AppDatabase.build(context)
-    return db.diaryDao()
+actual fun createDatabase(platformContext: Any?): IAppDatabase {
+    val context = platformContext as Context
+    return getRoomDatabase(
+        Room.databaseBuilder(
+            context.applicationContext,
+            AppDatabase::class.java,
+            "app.db"
+        )
+    )
 }

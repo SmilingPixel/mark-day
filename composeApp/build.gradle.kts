@@ -9,6 +9,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 // Note: KSP plugin should be applied at the project/pluginManagement level
 // if you want to enable annotation processing. Configure KSP with a version
@@ -84,13 +86,12 @@ kotlin {
             dependsOn(commonMain.get())
             dependencies {
                 implementation(libs.androidx.datastore.preferences.core)
+                implementation(libs.androidx.room.runtime)
+                implementation(libs.sqlite.bundled)
             }
         }
 
         androidMain.dependencies {
-            // Room for Android target only
-            implementation("androidx.room:room-runtime")
-            implementation("androidx.room:room-ktx")
             implementation(libs.ktor.client.okhttp)
         }
         androidMain.get().dependsOn(nonWebMain)
@@ -122,6 +123,10 @@ kotlin {
     }
 }
 
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
 android {
     namespace = "io.github.smiling_pixel"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -150,6 +155,10 @@ android {
 }
 
 dependencies {
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspJvm", libs.androidx.room.compiler)
+    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
     debugImplementation(compose.uiTooling)
 }
 
