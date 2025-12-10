@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import io.github.smiling_pixel.database.createDatabase
 import io.github.smiling_pixel.database.DiaryRepository
+import io.github.smiling_pixel.filesystem.FileRepository
+import io.github.smiling_pixel.filesystem.fileManager
 import io.github.smiling_pixel.preference.AndroidContextProvider
 
 class MainActivity : ComponentActivity() {
@@ -19,9 +21,10 @@ class MainActivity : ComponentActivity() {
         // Build Room-backed repository on Android and pass it into App
         val db = createDatabase(this)
         val repo = DiaryRepository(db.diaryDao())
+        val fileRepo = FileRepository(fileManager, db.fileMetadataDao())
 
         setContent {
-            App(repo)
+            App(repo, fileRepo)
         }
     }
 }

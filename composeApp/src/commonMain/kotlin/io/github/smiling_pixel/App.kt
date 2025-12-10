@@ -33,6 +33,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
+import io.github.smiling_pixel.filesystem.FileRepository
+import io.github.smiling_pixel.filesystem.InMemoryFileManager
+import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.preference.getSettingsRepository
@@ -42,6 +45,9 @@ sealed interface AppRoute
 
 @Serializable
 object EntriesRoute : AppRoute
+
+@Serializable
+object MomentsRoute : AppRoute
 
 @Serializable
 object InsightsRoute : AppRoute
@@ -54,9 +60,15 @@ object ProfileRoute : AppRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) {
+fun App(
+    providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
+    providedFileRepo: FileRepository? = null
+) {
     MaterialTheme {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
+        val fileRepo = providedFileRepo ?: remember { 
+            FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao()) 
+        }
         val weatherClient = remember { GoogleWeatherClient(getSettingsRepository()) }
         val scope = rememberCoroutineScope()
         val navController = rememberNavController()
@@ -107,6 +119,7 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                         title = {
                             val title = when (selected) {
                                 EntriesRoute -> "Entries"
+                                MomentsRoute -> "Moments"
                                 InsightsRoute -> "Insights"
                                 SettingsRoute -> "Settings"
                                 ProfileRoute -> "Profile"
@@ -137,6 +150,15 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                         },
                         icon = { Text("E") },
                         label = { Text("Entries") }
+                    )
+                    NavigationBarItem(
+                        selected = selected == MomentsRoute,
+                        onClick = {
+                            selected = MomentsRoute
+                            navController.navigate(MomentsRoute)
+                        },
+                        icon = { Text("M") },
+                        label = { Text("Moments") }
                     )
                     NavigationBarItem(
                         selected = selected == InsightsRoute,
@@ -170,6 +192,9 @@ fun App(providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null) 
                             onSelectionModeChange = { isSelectionMode = it },
                             onSelectionChange = { selectedIds = it }
                         )
+                    }
+                    composable<MomentsRoute> {
+                        MomentsScreen(fileRepo = fileRepo)
                     }
                     composable<InsightsRoute> {
                         InsightsScreen()
