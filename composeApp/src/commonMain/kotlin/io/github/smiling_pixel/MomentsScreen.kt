@@ -44,24 +44,54 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.rememberCoroutineScope
+import io.github.smiling_pixel.filesystem.rememberFilePicker
+import io.github.smiling_pixel.filesystem.readBytes
+import io.github.smiling_pixel.filesystem.name
+import kotlinx.coroutines.launch
+
 @Composable
 fun MomentsScreen(fileRepo: FileRepository) {
     val files by fileRepo.files.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+
+    val picker = rememberFilePicker { platformFiles ->
+        scope.launch {
+            platformFiles.forEach { file ->
+                val bytes = file.readBytes()
+                fileRepo.saveFile(file.name(), bytes)
+            }
+        }
+    }
 
     val groupedFiles = remember(files) {
         files.sortedByDescending { it.createdAt }
             .groupBy { it.createdAt.toMonthYear() }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(groupedFiles.keys.toList()) { month ->
-            MomentSection(
-                month = month,
-                files = groupedFiles[month] ?: emptyList()
-            )
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { picker.launch() },
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Upload Files")
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(groupedFiles.keys.toList()) { month ->
+                MomentSection(
+                    month = month,
+                    files = groupedFiles[month] ?: emptyList()
+                )
+            }
         }
     }
 }
