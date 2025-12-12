@@ -3,7 +3,7 @@ package io.github.smiling_pixel.filesystem
 import io.github.smiling_pixel.database.IFileMetadataDao
 import io.github.smiling_pixel.model.FileMetadata
 import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 class FileRepository(
     private val fileManager: FileManager,

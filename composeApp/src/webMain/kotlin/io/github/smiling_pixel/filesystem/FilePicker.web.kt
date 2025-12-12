@@ -12,26 +12,27 @@ import org.w3c.files.FileReader
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-actual class PlatformFile(val file: File) {
-    actual suspend fun readBytes(): ByteArray = suspendCoroutine { cont ->
-        val reader = FileReader()
-        reader.onload = {
-            val buffer = reader.result as ArrayBuffer
-            val int8Array = Int8Array(buffer)
-            val bytes = ByteArray(int8Array.length)
-            for (i in 0 until int8Array.length) {
-                bytes[i] = int8Array[i]
-            }
-            cont.resume(bytes)
-        }
-        reader.onerror = {
-            cont.resume(byteArrayOf())
-        }
-        reader.readAsArrayBuffer(file)
-    }
+actual class PlatformFile(val file: File)
 
-    actual fun name(): String = file.name
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+actual suspend fun PlatformFile.readBytes(): ByteArray = suspendCoroutine { cont ->
+    val reader = FileReader()
+    reader.onload = {
+        val buffer = reader.result as ArrayBuffer
+        val int8Array = Int8Array(buffer)
+        val bytes = ByteArray(int8Array.length)
+        for (i in 0 until int8Array.length) {
+            bytes[i] = int8Array[i]
+        }
+        cont.resume(bytes)
+    }
+    reader.onerror = {
+        cont.resume(byteArrayOf())
+    }
+    reader.readAsArrayBuffer(file)
 }
+
+actual fun PlatformFile.name(): String = file.name
 
 @Composable
 actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher {
