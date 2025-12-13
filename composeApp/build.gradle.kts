@@ -35,11 +35,6 @@ kotlin {
     
     jvm()
     
-    js {
-        browser()
-        binaries.executable()
-    }
-    
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
@@ -78,10 +73,6 @@ kotlin {
             implementation(libs.okio)
         }
         
-        val webMain by creating {
-            dependsOn(commonMain.get())
-        }
-
         val nonWebMain by creating {
             dependsOn(commonMain.get())
             dependencies {
@@ -111,15 +102,9 @@ kotlin {
         }
         jvmMain.get().dependsOn(nonWebMain)
 
-        jsMain.dependencies {
-            implementation(libs.ktor.client.js)
-        }
-        jsMain.get().dependsOn(webMain)
-
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
         }
-        wasmJsMain.get().dependsOn(webMain)
     }
 }
 
