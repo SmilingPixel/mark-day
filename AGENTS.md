@@ -17,8 +17,8 @@ This document provides essential guidelines and context for AI agents interactin
     *   **`composeApp/src/androidMain/`**: Android-specific implementations.
     *   **`composeApp/src/iosMain/`**: iOS-specific implementations.
     *   **`composeApp/src/jvmMain/`**: Desktop-specific implementations.
-    *   **`composeApp/src/jsMain/`**: JavaScript-specific implementations.
-    *   **`composeApp/src/wasmJsMain/`**: WebAssembly-specific implementations.
+    *   **`composeApp/src/wasmJsMain/`**: WebAssembly-specific implementations (Web target).
+    *   **`composeApp/src/nonWebMain/`**: Shared logic for non-web platforms (Android, iOS, Desktop).
     *   **`composeApp/src/commonMain/composeResources/`**: Shared assets (drawables, strings).
 *   **`iosApp/`**: Xcode project for iOS native app. Interacts with `composeApp` as a framework.
 
@@ -52,12 +52,9 @@ When modifying or generating code, adhere to the following:
 ### 3.3. Build & Test
 
 *   **Build Tool**: Gradle.
-
-
-## 4. Interaction Protocol
-
-*   **Changes**: When proposing changes (e.g., via a Pull Request), include:
-    *   A clear description of the change.
-    *   Evidence of passing `ktlintCheck`, `detekt`, and relevant tests.
-    *   Screenshots/GIFs for UI changes, if applicable.
-*   **Queries**: When asked to perform a task, prioritize `commonMain` for shared logic unless platform-specific implementation is explicitly requested or required.
+*   **Common Commands**:
+    *   **Android**: `./gradlew installDebug` (Run on connected device/emulator)
+    *   **Desktop**: `./gradlew run` (Run desktop application)
+    *   **Web (Wasm)**: `./gradlew wasmJsBrowserRun` (Run in browser)
+    *   **iOS**: Open `iosApp/iosApp.xcodeproj` in Xcode and run.
+    *   **Tests**: `./gradlew check` (Run all checks) or `./gradlew allTests` (Run all tests)
