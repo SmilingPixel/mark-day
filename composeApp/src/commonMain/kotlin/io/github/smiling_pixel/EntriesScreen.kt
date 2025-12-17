@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -143,11 +144,45 @@ fun EntriesScreen(
                                 )
                             }
                             Column(modifier = Modifier.weight(1f)) {
+                                val (displayTitle, displayContent) = remember(entry.title, entry.content) {
+                                    if (entry.title.isNotEmpty()) {
+                                        val contentPreview = if (entry.content.isNotEmpty()) {
+                                            entry.content.lineSequence().firstOrNull()?.take(60)
+                                        } else {
+                                            null
+                                        }
+                                        entry.title to contentPreview
+                                    } else {
+                                        val firstTwoLines = entry.content.lineSequence().take(2).toList()
+                                        val titlePreview = if (firstTwoLines.isNotEmpty() && firstTwoLines[0].isNotEmpty()) {
+                                            firstTwoLines[0].take(60)
+                                        } else {
+                                            "Untitled"
+                                        }
+                                        val contentPreview = if (firstTwoLines.size > 1 && firstTwoLines[1].isNotEmpty()) {
+                                            firstTwoLines[1].take(60)
+                                        } else {
+                                            null
+                                        }
+                                        titlePreview to contentPreview
+                                    }
+                                }
+
                                 Text(
-                                    text = entry.title,
+                                    text = displayTitle,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+                                if (displayContent != null) {
+                                    Text(
+                                        text = displayContent,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                                 Text(
                                     text = "Date: ${entry.entryDate}",
                                     style = MaterialTheme.typography.bodySmall,
