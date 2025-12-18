@@ -284,16 +284,20 @@ fun EntryDetailsScreen(
             
             Spacer(modifier = Modifier.height(6.dp))
 
+            val createdTimeStr = "${createdLocal.hour.toString().padStart(2, '0')}:${createdLocal.minute.toString().padStart(2, '0')}:${createdLocal.second.toString().padStart(2, '0')}"
             Text(
-                text = "Created: ${createdLocal.date} ${createdLocal.time}",
+                text = "Created: ${createdLocal.date} $createdTimeStr",
                 style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
             )
 
             Spacer(modifier = Modifier.height(6.dp))
 
+            val updatedTimeStr = "${updatedLocal.hour.toString().padStart(2, '0')}:${updatedLocal.minute.toString().padStart(2, '0')}:${updatedLocal.second.toString().padStart(2, '0')}"
             Text(
-                text = "Updated: ${updatedLocal.date} ${updatedLocal.time}",
+                text = "Updated: ${updatedLocal.date} $updatedTimeStr",
                 style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
             )
 
             Spacer(modifier = Modifier.height(12.dp))
