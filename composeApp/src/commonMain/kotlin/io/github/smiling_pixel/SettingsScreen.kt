@@ -1,5 +1,6 @@
 package io.github.smiling_pixel
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +26,7 @@ fun SettingsScreen() {
     val scope = rememberCoroutineScope()
     val settingsRepository = getSettingsRepository()
     val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
+    val uriHandler = LocalUriHandler.current
 
     Column(
         modifier = Modifier
@@ -67,6 +70,15 @@ fun SettingsScreen() {
         Text(
             text = "A cross-platform diary application built with Kotlin Multiplatform and Compose.",
             style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "View on GitHub",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.clickable {
+                uriHandler.openUri("https://github.com/SmilingPixel/mark-day")
+            }
         )
     }
 }
