@@ -8,13 +8,13 @@ import java.io.File
 import javax.swing.JFileChooser
 import javax.swing.SwingUtilities
 
-actual class PlatformFile(val file: File) {
-    actual suspend fun readBytes(): ByteArray = withContext(Dispatchers.IO) {
-        file.readBytes()
-    }
+actual class PlatformFile(val file: File)
 
-    actual fun name(): String = file.name
+actual suspend fun PlatformFile.readBytes(): ByteArray = withContext(Dispatchers.IO) {
+    file.readBytes()
 }
+
+actual fun PlatformFile.name(): String = file.name
 
 @Composable
 actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher {
