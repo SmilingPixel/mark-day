@@ -173,6 +173,7 @@ fun EntryDetailsScreen(
                 value = title,
                 onValueChange = { title = it },
                 label = { Text("Title") },
+                placeholder = { Text("Enter title...") },
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.headlineMedium
             )
@@ -269,6 +270,7 @@ fun EntryDetailsScreen(
                 value = content,
                 onValueChange = { content = it },
                 label = { Text("Content") },
+                placeholder = { Text("Type anything... Markdown is supported.") },
                 modifier = Modifier.fillMaxSize()
             )
         } else {
