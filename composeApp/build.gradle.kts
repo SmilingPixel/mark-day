@@ -71,6 +71,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.okio)
+            implementation(libs.multiplatform.markdown.renderer.m3)
         }
         
         val nonWebMain by creating {

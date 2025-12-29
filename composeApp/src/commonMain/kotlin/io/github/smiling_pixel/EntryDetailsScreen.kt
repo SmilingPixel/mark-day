@@ -3,6 +3,7 @@ package io.github.smiling_pixel
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.model.Location
+import com.mikepenz.markdown.m3.Markdown
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -316,9 +317,8 @@ fun EntryDetailsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = entry.content,
-                style = MaterialTheme.typography.bodyMedium,
+            Markdown(
+                content = entry.content,
             )
         }
     }
