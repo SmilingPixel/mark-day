@@ -39,6 +39,8 @@ import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.preference.getSettingsRepository
+import coil3.compose.LocalPlatformContext
+import coil3.compose.setSingletonImageLoaderFactory
 
 @Serializable
 sealed interface AppRoute
@@ -64,6 +66,10 @@ fun App(
     providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
     providedFileRepo: FileRepository? = null
 ) {
+    setSingletonImageLoaderFactory { context ->
+        getAsyncImageLoader(context)
+    }
+
     MaterialTheme {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
         val fileRepo = providedFileRepo ?: remember { 

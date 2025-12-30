@@ -4,6 +4,7 @@ import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.model.Location
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -319,6 +320,7 @@ fun EntryDetailsScreen(
 
             Markdown(
                 content = entry.content,
+                imageTransformer = Coil3ImageTransformerImpl,
             )
         }
     }
