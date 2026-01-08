@@ -14,7 +14,8 @@ import okio.Path
 import okio.IOException
 
 class LocalFileFetcher(
-    private val fileName: String
+    private val fileName: String,
+    private val fileManager: FileManager
 ) : Fetcher {
 
     override suspend fun fetch(): FetchResult? {
@@ -28,18 +29,25 @@ class LocalFileFetcher(
         )
     }
 
-    class Factory : Fetcher.Factory<Uri> {
+    class Factory(private val fileManager: FileManager) : Fetcher.Factory<Uri> {
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
             if (data.scheme == "localfile") {
                 // data.path might start with /, e.g. /image.jpg
                 val fileName = data.path?.trimStart('/') ?: return null
-                return LocalFileFetcher(fileName)
+                return LocalFileFetcher(fileName, fileManager)
             }
             return null
         }
     }
 }
 
+/**
+ * A dummy [FileSystem] implementation used for [ImageSource] when the data is already buffered in memory.
+ * 
+ * Since we load the file content into an Okio [Buffer] using [FileManager] and pass that buffer to [ImageSource],
+ * Coil does not need to read from the file system directly for this source. 
+ * This implementation safely returns null or throws strict exceptions to ensure no unintended file system usage occurs.
+ */
 object EmptyFileSystem : FileSystem() {
     override fun canonicalize(path: Path) = path
     override fun metadataOrNull(path: Path) = null
