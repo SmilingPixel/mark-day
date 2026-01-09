@@ -10,7 +10,7 @@ import io.github.smiling_pixel.filesystem.fileManager
 fun getAsyncImageLoader(context: PlatformContext): ImageLoader {
     return ImageLoader.Builder(context)
         .components {
-            add(LocalFileFetcher.Factory(fileManager)) // use localfile schema, e.g., `localfile://myimage.jpg`
+            add(LocalFileFetcher.Factory(fileManager)) // use localfile scheme, e.g., `localfile://myimage.jpg`, see LocalFileFetcher implementation for details
             add(KtorNetworkFetcherFactory())
         }
         .crossfade(true)

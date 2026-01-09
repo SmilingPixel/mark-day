@@ -29,6 +29,17 @@ class LocalFileFetcher(
         )
     }
 
+    /**
+     * Factory for creating [LocalFileFetcher] instances for URIs with the `localfile` scheme.
+     *
+     * Expected formats include:
+     * - `localfile:image.jpg`
+     * - `localfile:/image.jpg`
+     * - `localfile:///image.jpg`
+     *
+     * In all cases, [Uri.path] is used and any leading '/' characters are trimmed before
+     * being passed to [FileManager]. Only the `localfile` scheme is recognized here.
+     */
     class Factory(private val fileManager: FileManager) : Fetcher.Factory<Uri> {
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
             if (data.scheme == "localfile") {
