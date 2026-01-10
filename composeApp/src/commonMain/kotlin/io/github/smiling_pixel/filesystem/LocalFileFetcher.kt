@@ -19,7 +19,14 @@ class LocalFileFetcher(
 ) : Fetcher {
 
     override suspend fun fetch(): FetchResult? {
-        val bytes = fileManager.read(fileName) ?: return null
+        val bytes = fileManager.read(fileName) ?: run {
+            val errorMessage = "LocalFileFetcher: File not found: $fileName"
+            println(errorMessage)
+            // Returning null here would let Coil try other fetchers, but since we handle 
+            // the 'localfile' scheme, no other fetcher is expected to succeed.
+            // Throwing an exception provides a more informative error result.
+            throw IOException(errorMessage)
+        }
         val buffer = Buffer().write(bytes)
         
         return SourceFetchResult(
@@ -44,7 +51,17 @@ class LocalFileFetcher(
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
             if (data.scheme == "localfile") {
                 // data.path might start with /, e.g. /image.jpg
-                val fileName = data.path?.trimStart('/') ?: return null
+                val fileName = data.path?.trimStart('/') ?: run {
+                    println("LocalFileFetcher: Empty path in URI: $data")
+                    return null
+                }
+
+                // Reject potentially unsafe paths to prevent directory traversal.
+                // This ensures inputs like "../secret.png" or "a/../../etc/passwd" are not used.
+                if (fileName.isEmpty() || fileName.contains("..")) {
+                    println("LocalFileFetcher: Rejected potentially unsafe or empty path: $fileName")
+                    return null
+                }
                 return LocalFileFetcher(fileName, fileManager)
             }
             return null
