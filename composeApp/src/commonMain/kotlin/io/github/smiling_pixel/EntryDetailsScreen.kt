@@ -3,14 +3,16 @@ package io.github.smiling_pixel
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.model.Location
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.Instant
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
@@ -173,6 +175,7 @@ fun EntryDetailsScreen(
                 value = title,
                 onValueChange = { title = it },
                 label = { Text("Title") },
+                placeholder = { Text("Enter title...") },
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.headlineMedium
             )
@@ -269,6 +272,7 @@ fun EntryDetailsScreen(
                 value = content,
                 onValueChange = { content = it },
                 label = { Text("Content") },
+                placeholder = { Text("Type anything... Markdown is supported.") },
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -314,9 +318,9 @@ fun EntryDetailsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = entry.content,
-                style = MaterialTheme.typography.bodyMedium,
+            Markdown(
+                content = entry.content,
+                imageTransformer = Coil3ImageTransformerImpl,
             )
         }
     }
