@@ -13,6 +13,10 @@ import okio.FileSystem
 import okio.Path
 import okio.IOException
 
+import io.github.smiling_pixel.util.Logger
+import io.github.smiling_pixel.util.e
+import io.github.smiling_pixel.util.w
+
 class LocalFileFetcher(
     private val fileName: String,
     private val fileManager: FileManager
@@ -21,7 +25,7 @@ class LocalFileFetcher(
     override suspend fun fetch(): FetchResult? {
         val bytes = fileManager.read(fileName) ?: run {
             val errorMessage = "LocalFileFetcher: File not found: $fileName"
-            println(errorMessage)
+            Logger.e("LocalFileFetcher", errorMessage)
             // Returning null here would let Coil try other fetchers, but since we handle 
             // the 'localfile' scheme, no other fetcher is expected to succeed.
             // Throwing an exception provides a more informative error result.
@@ -52,14 +56,14 @@ class LocalFileFetcher(
             if (data.scheme == "localfile") {
                 // data.path might start with /, e.g. /image.jpg
                 val fileName = data.path?.trimStart('/') ?: run {
-                    println("LocalFileFetcher: Empty path in URI: $data")
+                    Logger.w("LocalFileFetcher", "Empty path in URI: $data")
                     return null
                 }
 
                 // Reject potentially unsafe paths to prevent directory traversal.
                 // This ensures inputs like "../secret.png" or "a/../../etc/passwd" are not used.
                 if (fileName.isEmpty() || fileName.contains("..")) {
-                    println("LocalFileFetcher: Rejected potentially unsafe or empty path: $fileName")
+                    Logger.w("LocalFileFetcher", "Rejected potentially unsafe or empty path: $fileName")
                     return null
                 }
                 return LocalFileFetcher(fileName, fileManager)

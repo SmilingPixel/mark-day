@@ -51,6 +51,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.time.ExperimentalTime
+import io.github.smiling_pixel.util.Logger
+import io.github.smiling_pixel.util.e
+import io.github.smiling_pixel.util.w
 
 @OptIn(ExperimentalTime::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -220,6 +223,7 @@ fun EntryDetailsScreen(
                     scope.launch {
                         try {
                             val location = Location(0.0, 0.0) // TODO: Get actual location @SmilingPixel
+                            Logger.w("EntryDetailsScreen", "Using hardcoded location: $location")
                             val targetDate = entry?.createdAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date 
                                 ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
                             
@@ -259,7 +263,7 @@ fun EntryDetailsScreen(
                             }
                         } catch (e: Exception) {
                             // TODO: Show error to user @SmilingPixel
-                            println("Weather fetch failed: $e")
+                            Logger.e("EntryDetailsScreen", "Weather fetch failed: $e")
                         }
                     }
                 }) {

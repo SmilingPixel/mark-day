@@ -15,6 +15,8 @@ import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import io.github.smiling_pixel.util.Logger
+import io.github.smiling_pixel.util.e
 
 /**
  * Implementation of [WeatherClient] using Google Weather API.
@@ -58,6 +60,7 @@ class GoogleWeatherClient(
             return response.toWeatherInfo()
         } catch (e: Exception) {
             // Wrap and rethrow or handle specific errors
+            Logger.e("GoogleWeatherClient", "Failed to get weather: ${e.message}")
             throw Exception("Failed to fetch weather data: ${e.message}", e)
         }
     }
@@ -75,6 +78,7 @@ class GoogleWeatherClient(
             }.body()
             return response.forecastHours.map { it.toIntervalWeatherInfo() }
         } catch (e: Exception) {
+            Logger.e("GoogleWeatherClient", "Failed to get hourly forecast: ${e.message}")
             throw Exception("Failed to fetch hourly forecast: ${e.message}", e)
         }
     }
@@ -91,6 +95,7 @@ class GoogleWeatherClient(
             }.body()
             return response.historyHours.map { it.toIntervalWeatherInfo() }
         } catch (e: Exception) {
+            Logger.e("GoogleWeatherClient", "Failed to get hourly history: ${e.message}")
             throw Exception("Failed to fetch hourly history: ${e.message}", e)
         }
     }
