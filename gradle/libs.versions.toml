@@ -54,6 +54,9 @@ multiplatform-markdown-renderer-coil3 = { module = "com.mikepenz:multiplatform-m
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 
+google-api-client = { module = "com.google.api-client:google-api-client", version = "2.7.0" }
+google-api-services-drive = { module = "com.google.apis:google-api-services-drive", version = "v3-rev20241027-2.0.0" }
+
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }

@@ -103,6 +103,8 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.ktor.client.java)
+            implementation(libs.google.api.client)
+            implementation(libs.google.api.services.drive)
         }
         jvmMain.get().dependsOn(nonWebMain)
 
