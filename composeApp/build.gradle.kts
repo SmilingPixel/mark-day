@@ -105,6 +105,7 @@ kotlin {
             implementation(libs.ktor.client.java)
             implementation(libs.google.api.client)
             implementation(libs.google.api.services.drive)
+            implementation(libs.google.oauth.client.jetty)
         }
         jvmMain.get().dependsOn(nonWebMain)
 

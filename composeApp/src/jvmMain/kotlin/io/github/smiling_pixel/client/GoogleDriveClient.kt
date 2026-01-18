@@ -1,13 +1,25 @@
 package io.github.smiling_pixel.client
 
+import com.google.api.client.auth.oauth2.Credential
+import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
+import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
+import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.ByteArrayContent
+import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
+import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.drive.Drive
+import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.FileNotFoundException
+import java.io.InputStreamReader
+import java.util.Collections
+import java.io.File as JavaFile
 
 /**
  * Implementation of [CloudDriveClient] for Google Drive on JVM.
@@ -22,24 +34,43 @@ class GoogleDriveClient : CloudDriveClient {
 
     private val jsonFactory = GsonFactory.getDefaultInstance()
     private val applicationName = "MarkDay Diary"
+    
+    /**
+     * Directory to store authorization tokens for this application.
+     */
+    private val TOKENS_DIRECTORY_PATH = "tokens"
 
-    // TODO: Initialize Drive service with proper authentication.
-    // The authentication process requires a valid Credential object.
-    // See: https://developers.google.com/workspace/drive/api/modules/auth
-    private val driveService: Drive by lazy {
-        // TODO: Handle GeneralSecurityException and IOException properly in a real app or during init
-        val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
-        
-        // TODO: Retrieve the actual credential (e.g., from an authorized user session).
-        // This is a placeholder. You need to implement the OAuth2 flow or pass a valid Credential.
-        /*
-        val credential = GoogleCredential.Builder()
-            .setTransport(httpTransport)
-            .setJsonFactory(jsonFactory)
-            .setClientSecrets(...)
+    /**
+     * Global instance of the scopes required by this quickstart.
+     * If modifying these scopes, delete your previously saved tokens/ folder.
+     */
+    private val SCOPES = listOf(DriveScopes.DRIVE_FILE)
+    private val CREDENTIALS_FILE_PATH = "/credentials.json"
+
+    private fun getCredentials(httpTransport: NetHttpTransport): Credential {
+        // TODO: https://developers.google.com/workspace/drive/api/quickstart/java
+        // Load client secrets.
+        val inputStream = GoogleDriveClient::class.java.getResourceAsStream(CREDENTIALS_FILE_PATH)
+            ?: throw FileNotFoundException("Resource not found: $CREDENTIALS_FILE_PATH. Please obtain credentials.json from Google Cloud Console.")
+            
+        val clientSecrets = GoogleClientSecrets.load(jsonFactory, InputStreamReader(inputStream))
+
+        // Build flow and trigger user authorization request.
+        val flow = GoogleAuthorizationCodeFlow.Builder(
+            httpTransport, jsonFactory, clientSecrets, SCOPES
+        )
+            .setDataStoreFactory(FileDataStoreFactory(JavaFile(TOKENS_DIRECTORY_PATH)))
+            .setAccessType("offline")
             .build()
-        */
-        val credential = null // Placeholder for compilation (will throw NPE at runtime if used)
+            
+        val receiver = LocalServerReceiver.Builder().setPort(8888).build()
+        // authorize("user") authorizes for the "user" user ID.
+        return AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
+    }
+
+    private val driveService: Drive by lazy {
+        val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+        val credential = getCredentials(httpTransport)
 
         Drive.Builder(httpTransport, jsonFactory, credential)
             .setApplicationName(applicationName)

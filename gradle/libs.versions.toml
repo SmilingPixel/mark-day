@@ -56,6 +56,7 @@ coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.re
 
 google-api-client = { module = "com.google.api-client:google-api-client", version = "2.7.0" }
 google-api-services-drive = { module = "com.google.apis:google-api-services-drive", version = "v3-rev20241027-2.0.0" }
+google-oauth-client-jetty = { module = "com.google.oauth-client:google-oauth-client-jetty", version = "1.36.0" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
