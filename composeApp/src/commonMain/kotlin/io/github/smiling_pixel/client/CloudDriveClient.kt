@@ -10,6 +10,12 @@ data class DriveFile(
     val isFolder: Boolean
 )
 
+data class UserInfo(
+    val name: String,
+    val email: String,
+    val photoUrl: String? = null
+)
+
 /**
  * Client interface for accessing and managing files on cloud drives.
  */
@@ -59,4 +65,12 @@ interface CloudDriveClient {
      * @return The updated [DriveFile].
      */
     suspend fun updateFile(fileId: String, content: ByteArray): DriveFile
+
+    suspend fun isAuthorized(): Boolean
+    suspend fun authorize(): Boolean
+    suspend fun signOut()
+    suspend fun getUserInfo(): UserInfo?
 }
+
+expect fun getCloudDriveClient(): CloudDriveClient
+

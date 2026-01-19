@@ -14,10 +14,17 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import io.github.smiling_pixel.client.UserInfo
+import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.preference.getSettingsRepository
 import kotlinx.coroutines.launch
 
@@ -27,6 +34,17 @@ fun SettingsScreen() {
     val settingsRepository = getSettingsRepository()
     val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
     val uriHandler = LocalUriHandler.current
+
+    val cloudDriveClient = remember { getCloudDriveClient() }
+    var userInfo by remember { mutableStateOf<UserInfo?>(null) }
+    var isAuthorized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isAuthorized = cloudDriveClient.isAuthorized()
+        if (isAuthorized) {
+            userInfo = cloudDriveClient.getUserInfo()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -55,6 +73,40 @@ fun SettingsScreen() {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "Cloud Drive Sync",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        if (isAuthorized) {
+            Text("Signed in as: ${userInfo?.name ?: "Loading..."}")
+            Text("Email: ${userInfo?.email ?: ""}")
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = {
+                scope.launch {
+                    cloudDriveClient.signOut()
+                    isAuthorized = false
+                    userInfo = null
+                }
+            }) {
+                Text("Revoke Authorization")
+            }
+        } else {
+            Button(onClick = {
+                scope.launch {
+                    if (cloudDriveClient.authorize()) {
+                        isAuthorized = true
+                        userInfo = cloudDriveClient.getUserInfo()
+                    }
+                }
+            }) {
+                Text("Authorize Google Drive")
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         
