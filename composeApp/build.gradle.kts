@@ -88,6 +88,9 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.play.services.auth)
+            implementation(libs.google.api.client.android)
+            implementation(libs.google.api.services.drive)
         }
         androidMain.get().dependsOn(nonWebMain)
 
