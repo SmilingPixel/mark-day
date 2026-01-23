@@ -1,10 +1,8 @@
 package io.github.smiling_pixel.client
 
-import android.app.Activity
 import android.content.Intent
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.IntentSenderRequest
 import kotlinx.coroutines.CompletableDeferred
 
 object GoogleSignInHelper {

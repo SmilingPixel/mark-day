@@ -8,7 +8,6 @@ import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.extensions.android.http.AndroidHttp
 import com.google.api.client.http.ByteArrayContent
-import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
@@ -83,19 +82,19 @@ class GoogleDriveClient : CloudDriveClient {
         val result = GoogleSignInHelper.launchSignIn(signInIntent)
         
         if (result != null && result.resultCode == android.app.Activity.RESULT_OK) {
-             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-             try {
-                 val account = task.getResult(ApiException::class.java)
-                 if (account != null) {
-                     val email = account.email
-                     if (email != null) {
-                         initService(email)
-                         return@withContext true
-                     }
-                 }
-             } catch (e: Exception) {
-                 e.printStackTrace()
-             }
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                if (account != null) {
+                    val email = account.email
+                    if (email != null) {
+                        initService(email)
+                        return@withContext true
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         false
     }
@@ -106,8 +105,8 @@ class GoogleDriveClient : CloudDriveClient {
         
         val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
         client.signOut().addOnCompleteListener { 
-             driveService = null
-             deferred.complete(Unit)
+            driveService = null
+            deferred.complete(Unit)
         }
         deferred.await()
     }

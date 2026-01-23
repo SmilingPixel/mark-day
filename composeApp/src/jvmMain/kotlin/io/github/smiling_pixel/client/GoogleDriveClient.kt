@@ -210,8 +210,8 @@ class GoogleDriveClient : CloudDriveClient {
             val credential = getCredentials(httpTransport)
             credential != null
         } catch (e: Exception) {
-             e.printStackTrace()
-             false
+            e.printStackTrace()
+            false
         }
     }
 
