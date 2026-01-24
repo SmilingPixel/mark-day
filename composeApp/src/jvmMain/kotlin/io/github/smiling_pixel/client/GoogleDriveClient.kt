@@ -29,6 +29,14 @@ import java.io.File as JavaFile
  * https://developers.google.com/workspace/drive/api/quickstart/java
  * https://developers.google.com/workspace/drive/api/guides/search-files
  * https://developers.google.com/workspace/drive/api/guides/manage-files
+ *
+ * IMPORTANT: This implementation requires a `credentials.json` file in the `src/jvmMain/resources` directory.
+ * This file contains the OAuth 2.0 Client ID and Client Secret.
+ * You can obtain this file from the Google Cloud Console:
+ * 1. Go to APIs & Services > Credentials.
+ * 2. Create an OAuth 2.0 Client ID for "Desktop app".
+ * 3. Download the JSON file and rename it to `credentials.json`.
+ * 4. Place it in `composeApp/src/jvmMain/resources/`.
  */
 class GoogleDriveClient : CloudDriveClient {
 
@@ -45,11 +53,18 @@ class GoogleDriveClient : CloudDriveClient {
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
     private val SCOPES = listOf(DriveScopes.DRIVE_FILE)
+    /**
+     * Path to the credentials file in resources.
+     * Ensure this file exists, otherwise [getFlow] will throw a [FileNotFoundException].
+     */
     private val CREDENTIALS_FILE_PATH = "/credentials.json"
 
     private fun getFlow(httpTransport: NetHttpTransport): GoogleAuthorizationCodeFlow {
         val inputStream = GoogleDriveClient::class.java.getResourceAsStream(CREDENTIALS_FILE_PATH)
-            ?: throw FileNotFoundException("Resource not found: $CREDENTIALS_FILE_PATH. Please obtain credentials.json from Google Cloud Console.")
+            ?: throw FileNotFoundException(
+                "Resource not found: $CREDENTIALS_FILE_PATH. " +
+                "Please obtain credentials.json from Google Cloud Console and place it in src/jvmMain/resources."
+            )
         
         val clientSecrets = GoogleClientSecrets.load(jsonFactory, InputStreamReader(inputStream))
 
