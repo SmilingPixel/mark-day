@@ -12,6 +12,8 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
+import io.github.smiling_pixel.util.Logger
+import io.github.smiling_pixel.util.e
 import io.github.smiling_pixel.preference.AndroidContextProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -93,7 +95,7 @@ class GoogleDriveClient : CloudDriveClient {
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Logger.e("GoogleDriveClient", "Google Sign-In failed: ${e.message}")
             }
         }
         false

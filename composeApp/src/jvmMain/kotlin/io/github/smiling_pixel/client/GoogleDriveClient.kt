@@ -13,6 +13,8 @@ import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
+import io.github.smiling_pixel.util.Logger
+import io.github.smiling_pixel.util.e
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -209,7 +211,7 @@ class GoogleDriveClient : CloudDriveClient {
             // Authorized if we have a refresh token OR a valid access token
             return@withContext refreshToken != null || (expiresIn != null && expiresIn > 60)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Logger.e("GoogleDriveClient", "Failed to check authorization status: ${e.message}")
             false
         }
     }
@@ -225,7 +227,7 @@ class GoogleDriveClient : CloudDriveClient {
             val credential = getCredentials(httpTransport)
             credential != null
         } catch (e: Exception) {
-            e.printStackTrace()
+            Logger.e("GoogleDriveClient", "Failed to authorize: ${e.message}")
             false
         }
     }
@@ -248,7 +250,7 @@ class GoogleDriveClient : CloudDriveClient {
                 photoUrl = user.photoLink
             )
         } catch (e: Exception) {
-            e.printStackTrace()
+            Logger.e("GoogleDriveClient", "Failed to get user info: ${e.message}")
             null
         }
     }
