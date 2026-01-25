@@ -43,23 +43,31 @@ import java.io.File as JavaFile
 class GoogleDriveClient : CloudDriveClient {
 
     private val jsonFactory = GsonFactory.getDefaultInstance()
-    private val applicationName = "MarkDay Diary"
     
-    /**
-     * Directory to store authorization tokens for this application.
-     */
-    private val TOKENS_DIRECTORY_PATH = "tokens"
+    private val applicationName = APPLICATION_NAME
+
+    companion object {
+        private const val APPLICATION_NAME = "MarkDay Diary"
+    }
+    
+    companion object {
+        /**
+         * Directory to store authorization tokens for this application.
+         */
+        private const val TOKENS_DIRECTORY_PATH = "tokens"
+
+        /**
+         * Path to the credentials file in resources.
+         * Ensure this file exists, otherwise [getFlow] will throw a [FileNotFoundException].
+         */
+        private const val CREDENTIALS_FILE_PATH = "/credentials.json"
+    }
 
     /**
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
     private val SCOPES = listOf(DriveScopes.DRIVE_FILE)
-    /**
-     * Path to the credentials file in resources.
-     * Ensure this file exists, otherwise [getFlow] will throw a [FileNotFoundException].
-     */
-    private val CREDENTIALS_FILE_PATH = "/credentials.json"
 
     private fun getFlow(httpTransport: NetHttpTransport): GoogleAuthorizationCodeFlow {
         val inputStream = GoogleDriveClient::class.java.getResourceAsStream(CREDENTIALS_FILE_PATH)
@@ -85,17 +93,17 @@ class GoogleDriveClient : CloudDriveClient {
         return AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
     }
 
-    private var _driveService: Drive? = null
+    private var driveServiceCache: Drive? = null
     
     private fun getDriveService(): Drive {
-        if (_driveService == null) {
+        if (driveServiceCache == null) {
             val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
             val credential = getCredentials(httpTransport)
-            _driveService = Drive.Builder(httpTransport, jsonFactory, credential)
+            driveServiceCache = Drive.Builder(httpTransport, jsonFactory, credential)
                 .setApplicationName(applicationName)
                 .build()
         }
-        return _driveService!!
+        return driveServiceCache!!
     }
 
     override suspend fun listFiles(parentId: String?): List<DriveFile> = withContext(Dispatchers.IO) {
@@ -236,7 +244,7 @@ class GoogleDriveClient : CloudDriveClient {
         val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
         val flow = getFlow(httpTransport)
         flow.credentialDataStore.delete("user")
-        _driveService = null
+        driveServiceCache = null
     }
 
     override suspend fun getUserInfo(): UserInfo? = withContext(Dispatchers.IO) {
