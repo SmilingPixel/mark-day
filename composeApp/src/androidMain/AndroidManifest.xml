@@ -10,6 +10,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <!-- Note:
+             The Android namespace/applicationId is configured separately in build.gradle.kts
+             (e.g., io.github.smiling_pixel.mark_day), while MainActivity remains in the
+             Kotlin package io.github.smiling_pixel. We use the fully qualified class name
+             here intentionally to reference the correct activity implementation. -->
         <activity
             android:exported="true"
             android:name="io.github.smiling_pixel.MainActivity">
