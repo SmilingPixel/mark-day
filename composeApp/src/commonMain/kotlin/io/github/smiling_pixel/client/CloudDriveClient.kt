@@ -66,9 +66,39 @@ interface CloudDriveClient {
      */
     suspend fun updateFile(fileId: String, content: ByteArray): DriveFile
 
+    /**
+     * Checks whether the client is currently authorized to access the cloud drive.
+     * This method should not trigger any user interaction.
+     *
+     * @return `true` if the client has a valid authorization/session, `false` otherwise.
+     * @throws Exception If the authorization state cannot be determined due to an underlying error.
+     */
     suspend fun isAuthorized(): Boolean
+
+    /**
+     * Initiates the authorization or sign-in flow required to access the cloud drive.
+     *
+     * @return `true` if authorization completes successfully and the client is ready to use,
+     *         `false` if the user cancels or authorization otherwise fails without throwing.
+     * @throws Exception If an unrecoverable error occurs during authorization (for example,
+     *         network failures or provider-specific errors).
+     */
     suspend fun authorize(): Boolean
+
+    /**
+     * Signs out the current user and revokes or clears any stored authorization.
+     *
+     * @throws Exception If an error occurs while signing out or revoking authorization.
+     */
     suspend fun signOut()
+
+    /**
+     * Retrieves basic information about the currently authorized user.
+     *
+     * @return A [UserInfo] object for the current user, or `null` if there is no authorized user.
+     * @throws Exception If user information cannot be retrieved due to authorization or
+     *         connectivity issues.
+     */
     suspend fun getUserInfo(): UserInfo?
 }
 
