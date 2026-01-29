@@ -17,18 +17,38 @@ import io.github.smiling_pixel.util.e
 import io.github.smiling_pixel.preference.AndroidContextProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.ByteArrayOutputStream
 import java.util.Collections
 
 class GoogleDriveClient : CloudDriveClient {
 
+    /**
+     * Retrieves the Android Application Context.
+     *
+     * This property accesses [AndroidContextProvider.context]. Ensure that [AndroidContextProvider.context]
+     * is initialized (typically in `MainActivity.onCreate`) before any methods of this client are called.
+     *
+     * @throws IllegalStateException if [AndroidContextProvider.context] has not been initialized yet.
+     */
     private val context: Context
-        get() = AndroidContextProvider.context
+        get() = try {
+            AndroidContextProvider.context
+        } catch (e: UninitializedPropertyAccessException) {
+            throw IllegalStateException(
+                "AndroidContextProvider.context is not initialized. " +
+                    "Ensure it is set before using GoogleDriveClient.",
+                e
+            )
+        }
 
     private val jsonFactory = GsonFactory.getDefaultInstance()
     private val appName = "MarkDay Diary"
     private val MIME_TYPE_FOLDER = "application/vnd.google-apps.folder"
 
+    private val serviceMutex = Mutex()
+    @Volatile
     private var driveService: Drive? = null
 
     private fun getService(): Drive {
@@ -36,20 +56,24 @@ class GoogleDriveClient : CloudDriveClient {
     }
 
     // Checking auth state and initializing service if possible
-    private fun checkAndInitService(): Boolean {
+    private suspend fun checkAndInitService(): Boolean {
         if (driveService != null) return true
         
-        val account = GoogleSignIn.getLastSignedInAccount(context)
-        val driveScope = Scope(DriveScopes.DRIVE_FILE)
-        
-        if (account != null && GoogleSignIn.hasPermissions(account, driveScope)) {
-            val email = account.email
-            if (email != null) {
-                initService(email)
-                return true
+        return serviceMutex.withLock {
+            if (driveService != null) return@withLock true
+
+            val account = GoogleSignIn.getLastSignedInAccount(context)
+            val driveScope = Scope(DriveScopes.DRIVE_FILE)
+
+            if (account != null && GoogleSignIn.hasPermissions(account, driveScope)) {
+                val email = account.email
+                if (email != null) {
+                    initService(email)
+                    return@withLock true
+                }
             }
+            false
         }
-        return false
     }
 
     private fun initService(email: String) {
@@ -69,9 +93,11 @@ class GoogleDriveClient : CloudDriveClient {
         checkAndInitService()
     }
 
+    The authorize() function in the Android implementation switches to Dispatchers.Main unnecessarily at the start. The function first checks authorization status using IO dispatcher (line 71), then the rest of the authorization logic also runs on Main. Since GoogleSignInHelper.launchSignIn likely needs to be on Main for launching the intent, consider restructuring the function to only switch to Main when necessary, and perform the initial authorization check on IO for better performance.
+
+Suggested change
     override suspend fun authorize(): Boolean = withContext(Dispatchers.Main) {
         if (withContext(Dispatchers.IO) { checkAndInitService() }) return@withContext true
-
         val driveScope = Scope(DriveScopes.DRIVE_FILE)
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
@@ -95,10 +121,41 @@ class GoogleDriveClient : CloudDriveClient {
                     }
                 }
             } catch (e: Exception) {
-                Logger.e("GoogleDriveClient", "Google Sign-In failed: ${e.message}")
+                e.printStackTrace()
             }
         }
         false
+    override suspend fun authorize(): Boolean {
+        // First, try to initialize the service on IO without switching to Main unnecessarily
+        if (withContext(Dispatchers.IO) { checkAndInitService() }) return true
+        // If not yet authorized, perform the sign-in flow on the main thread
+        return withContext(Dispatchers.Main) {
+            val driveScope = Scope(DriveScopes.DRIVE_FILE)
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .requestScopes(driveScope)
+                .build()
+            val client = GoogleSignIn.getClient(context, gso)
+            val signInIntent = client.signInIntent
+            val result = GoogleSignInHelper.launchSignIn(signInIntent)
+            if (result != null && result.resultCode == android.app.Activity.RESULT_OK) {
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                try {
+                    val account = task.getResult(ApiException::class.java)
+                    if (account != null) {
+                        val email = account.email
+                        if (email != null) {
+                            initService(email)
+                            return@withContext true
+                        }
+                    }
+                } catch (e: Exception) {
+                    Logger.e("GoogleDriveClient", "Authorization failed: ${e.message}")
+                    e.printStackTrace()
+                }
+            }
+            false
+        }
     }
 
     override suspend fun signOut() = withContext(Dispatchers.Main) {
