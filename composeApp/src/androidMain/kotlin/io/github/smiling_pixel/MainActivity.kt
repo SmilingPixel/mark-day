@@ -12,10 +12,20 @@ import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.fileManager
 import io.github.smiling_pixel.preference.AndroidContextProvider
 
+import androidx.activity.result.contract.ActivityResultContracts
+import io.github.smiling_pixel.client.GoogleSignInHelper
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        
+        GoogleSignInHelper.registerLauncher(
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                GoogleSignInHelper.onActivityResult(result)
+            }
+        )
+
         AndroidContextProvider.context = this.applicationContext
 
         // Build Room-backed repository on Android and pass it into App
