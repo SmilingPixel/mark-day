@@ -20,6 +20,10 @@ data class UserInfo(
  * Client interface for accessing and managing files on cloud drives.
  */
 interface CloudDriveClient {
+    companion object {
+        const val MIME_TYPE_FOLDER = "application/vnd.google-apps.folder"
+    }
+
     /**
      * Lists files and folders in the specified parent folder.
      * @param parentId The ID of the parent folder. If null, lists files in the root.

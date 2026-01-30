@@ -45,7 +45,6 @@ class GoogleDriveClient : CloudDriveClient {
 
     private val jsonFactory = GsonFactory.getDefaultInstance()
     private val appName = "MarkDay Diary"
-    private val MIME_TYPE_FOLDER = "application/vnd.google-apps.folder"
 
     private val serviceMutex = Mutex()
     @Volatile
@@ -195,7 +194,7 @@ Suggested change
                 id = file.id,
                 name = file.name,
                 mimeType = file.mimeType,
-                isFolder = file.mimeType == MIME_TYPE_FOLDER
+                isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
             )
         } ?: emptyList()
     }
@@ -219,14 +218,14 @@ Suggested change
             id = file.id,
             name = file.name,
             mimeType = file.mimeType,
-            isFolder = file.mimeType == MIME_TYPE_FOLDER
+            isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
         )
     }
 
     override suspend fun createFolder(name: String, parentId: String?): DriveFile = withContext(Dispatchers.IO) {
         val fileMetadata = File().apply {
             this.name = name
-            this.mimeType = MIME_TYPE_FOLDER
+            this.mimeType = CloudDriveClient.MIME_TYPE_FOLDER
             if (parentId != null) {
                 this.parents = listOf(parentId)
             }
@@ -239,7 +238,7 @@ Suggested change
         DriveFile(
             id = file.id,
             name = file.name,
-            mimeType = MIME_TYPE_FOLDER,
+            mimeType = CloudDriveClient.MIME_TYPE_FOLDER,
             isFolder = true
         )
     }
@@ -270,7 +269,7 @@ Suggested change
             id = updatedFile.id,
             name = updatedFile.name,
             mimeType = updatedFile.mimeType,
-            isFolder = updatedFile.mimeType == MIME_TYPE_FOLDER
+            isFolder = updatedFile.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
         )
     }
 }

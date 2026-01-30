@@ -65,9 +65,13 @@ class GoogleDriveClient : CloudDriveClient {
 
     /**
      * Global instance of the scopes required by this quickstart.
-     * If modifying these scopes, delete your previously saved tokens/ folder.
+     *
+     * WARNING: If modifying these scopes, you MUST delete your previously saved "tokens/" folder.
+     * Failing to do so will result in authorization errors because the stored credentials will not have the new scopes.
+     *
+     * Current scope [DriveScopes.DRIVE_FILE] only grants access to files created by this app.
      */
-    private val SCOPES = listOf(DriveScopes.DRIVE_FILE)
+    private val scopes = listOf(DriveScopes.DRIVE_FILE)
 
     private fun getFlow(httpTransport: NetHttpTransport): GoogleAuthorizationCodeFlow {
         val inputStream = GoogleDriveClient::class.java.getResourceAsStream(CREDENTIALS_FILE_PATH)
@@ -79,7 +83,7 @@ class GoogleDriveClient : CloudDriveClient {
         val clientSecrets = GoogleClientSecrets.load(jsonFactory, InputStreamReader(inputStream))
 
         return GoogleAuthorizationCodeFlow.Builder(
-            httpTransport, jsonFactory, clientSecrets, SCOPES
+            httpTransport, jsonFactory, clientSecrets, scopes
         )
             .setDataStoreFactory(FileDataStoreFactory(JavaFile(TOKENS_DIRECTORY_PATH)))
             .setAccessType("offline")
@@ -120,7 +124,7 @@ class GoogleDriveClient : CloudDriveClient {
                 id = file.id,
                 name = file.name,
                 mimeType = file.mimeType,
-                isFolder = file.mimeType == MIME_TYPE_FOLDER
+                isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
             )
         } ?: emptyList()
     }
@@ -144,14 +148,14 @@ class GoogleDriveClient : CloudDriveClient {
             id = file.id,
             name = file.name,
             mimeType = file.mimeType,
-            isFolder = file.mimeType == MIME_TYPE_FOLDER
+            isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
         )
     }
 
     override suspend fun createFolder(name: String, parentId: String?): DriveFile = withContext(Dispatchers.IO) {
         val fileMetadata = File().apply {
             this.name = name
-            this.mimeType = MIME_TYPE_FOLDER
+            this.mimeType = CloudDriveClient.MIME_TYPE_FOLDER
             if (parentId != null) {
                 this.parents = listOf(parentId)
             }
@@ -164,7 +168,7 @@ class GoogleDriveClient : CloudDriveClient {
         DriveFile(
             id = file.id,
             name = file.name,
-            mimeType = MIME_TYPE_FOLDER,
+            mimeType = CloudDriveClient.MIME_TYPE_FOLDER,
             isFolder = true
         )
     }
@@ -202,7 +206,7 @@ class GoogleDriveClient : CloudDriveClient {
             id = updatedFile.id,
             name = updatedFile.name,
             mimeType = updatedFile.mimeType,
-            isFolder = updatedFile.mimeType == MIME_TYPE_FOLDER
+            isFolder = updatedFile.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
         )
     }
 
@@ -261,10 +265,6 @@ class GoogleDriveClient : CloudDriveClient {
             Logger.e("GoogleDriveClient", "Failed to get user info: ${e.message}")
             null
         }
-    }
-
-    companion object {
-        private const val MIME_TYPE_FOLDER = "application/vnd.google-apps.folder"
     }
 }
 
