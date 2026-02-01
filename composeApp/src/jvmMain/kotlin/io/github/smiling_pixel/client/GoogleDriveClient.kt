@@ -112,7 +112,9 @@ class GoogleDriveClient : CloudDriveClient {
 
     override suspend fun listFiles(parentId: String?): List<DriveFile> = withContext(Dispatchers.IO) {
         val folderId = parentId ?: "root"
-        val query = "'$folderId' in parents and trashed = false"
+        // Sanitize folderId to prevent injection
+        val sanitizedFolderId = folderId.replace("'", "\\'")
+        val query = "'$sanitizedFolderId' in parents and trashed = false"
         
         val result = getDriveService().files().list()
             .setQ(query)
