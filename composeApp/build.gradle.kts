@@ -88,6 +88,9 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.play.services.auth)
+            implementation(libs.google.api.client.android)
+            implementation(libs.google.api.services.drive)
         }
         androidMain.get().dependsOn(nonWebMain)
 
@@ -103,6 +106,9 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.ktor.client.java)
+            implementation(libs.google.api.client)
+            implementation(libs.google.api.services.drive)
+            implementation(libs.google.oauth.client.jetty)
         }
         jvmMain.get().dependsOn(nonWebMain)
 
@@ -117,11 +123,11 @@ room {
 }
 
 android {
-    namespace = "io.github.smiling_pixel"
+    namespace = "io.github.smiling_pixel.mark_day"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "io.github.smiling_pixel"
+        applicationId = "io.github.smiling_pixel.mark_day"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -157,7 +163,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "io.github.smiling_pixel"
+            packageName = "io.github.smiling_pixel.mark_day"
             packageVersion = "1.0.0"
         }
     }
