@@ -48,9 +48,7 @@ class GoogleDriveClient : CloudDriveClient {
 
     companion object {
         private const val APPLICATION_NAME = "MarkDay Diary"
-    }
-    
-    companion object {
+
         /**
          * Directory to store authorization tokens for this application.
          */
