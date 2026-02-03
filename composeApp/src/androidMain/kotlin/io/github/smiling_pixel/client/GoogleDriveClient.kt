@@ -132,9 +132,15 @@ class GoogleDriveClient : CloudDriveClient {
         val client = GoogleSignIn.getClient(context, gso)
         
         val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
-        client.signOut().addOnCompleteListener { 
-            driveService = null
-            deferred.complete(Unit)
+        client.signOut().addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                driveService = null
+                deferred.complete(Unit)
+            } else {
+                val e = task.exception ?: RuntimeException("Sign out failed")
+                Logger.e("GoogleDriveClient", "Sign out failed: ${e.message}")
+                deferred.completeExceptionally(e)
+            }
         }
         deferred.await()
     }
