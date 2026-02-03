@@ -78,7 +78,9 @@ class GoogleDriveClient : CloudDriveClient {
                 "Please obtain credentials.json from Google Cloud Console and place it in src/jvmMain/resources."
             )
         
-        val clientSecrets = GoogleClientSecrets.load(jsonFactory, InputStreamReader(inputStream))
+        val clientSecrets = InputStreamReader(inputStream).use { reader ->
+            GoogleClientSecrets.load(jsonFactory, reader)
+        }
 
         return GoogleAuthorizationCodeFlow.Builder(
             httpTransport, jsonFactory, clientSecrets, scopes
