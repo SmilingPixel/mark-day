@@ -94,36 +94,6 @@ class GoogleDriveClient : CloudDriveClient {
 
     The authorize() function in the Android implementation switches to Dispatchers.Main unnecessarily at the start. The function first checks authorization status using IO dispatcher (line 71), then the rest of the authorization logic also runs on Main. Since GoogleSignInHelper.launchSignIn likely needs to be on Main for launching the intent, consider restructuring the function to only switch to Main when necessary, and perform the initial authorization check on IO for better performance.
 
-Suggested change
-    override suspend fun authorize(): Boolean = withContext(Dispatchers.Main) {
-        if (withContext(Dispatchers.IO) { checkAndInitService() }) return@withContext true
-        val driveScope = Scope(DriveScopes.DRIVE_FILE)
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestScopes(driveScope)
-            .build()
-            
-        val client = GoogleSignIn.getClient(context, gso)
-        val signInIntent = client.signInIntent
-        
-        val result = GoogleSignInHelper.launchSignIn(signInIntent)
-        
-        if (result != null && result.resultCode == android.app.Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                if (account != null) {
-                    val email = account.email
-                    if (email != null) {
-                        initService(email)
-                        return@withContext true
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        false
     override suspend fun authorize(): Boolean {
         // First, try to initialize the service on IO without switching to Main unnecessarily
         if (withContext(Dispatchers.IO) { checkAndInitService() }) return true
