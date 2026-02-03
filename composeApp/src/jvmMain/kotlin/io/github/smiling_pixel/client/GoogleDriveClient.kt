@@ -97,17 +97,27 @@ class GoogleDriveClient : CloudDriveClient {
         return AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
     }
 
+    @Volatile
     private var driveServiceCache: Drive? = null
     
     private fun getDriveService(): Drive {
-        if (driveServiceCache == null) {
-            val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
-            val credential = getCredentials(httpTransport)
-            driveServiceCache = Drive.Builder(httpTransport, jsonFactory, credential)
-                .setApplicationName(applicationName)
-                .build()
+        val cached = driveServiceCache
+        if (cached != null) return cached
+
+        return synchronized(this) {
+            val cachedInLock = driveServiceCache
+            if (cachedInLock != null) {
+                cachedInLock
+            } else {
+                val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+                val credential = getCredentials(httpTransport)
+                val newService = Drive.Builder(httpTransport, jsonFactory, credential)
+                    .setApplicationName(applicationName)
+                    .build()
+                driveServiceCache = newService
+                newService
+            }
         }
-        return driveServiceCache!!
     }
 
     override suspend fun listFiles(parentId: String?): List<DriveFile> = withContext(Dispatchers.IO) {

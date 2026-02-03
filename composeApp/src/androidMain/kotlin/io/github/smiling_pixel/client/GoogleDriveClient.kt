@@ -114,7 +114,9 @@ class GoogleDriveClient : CloudDriveClient {
                     if (account != null) {
                         val email = account.email
                         if (email != null) {
-                            initService(email)
+                            serviceMutex.withLock {
+                                initService(email)
+                            }
                             return@withContext true
                         }
                     }
