@@ -21,6 +21,10 @@ object GoogleSignInHelper {
         this.launcher = launcher
     }
 
+    fun unregisterLauncher() {
+        this.launcher = null
+    }
+
     fun onActivityResult(result: ActivityResult) {
         if (authDeferred == null) {
             Log.w("GoogleSignInHelper", "onActivityResult called but authDeferred is null. Unexpected activity result or cancelled sign-in.")

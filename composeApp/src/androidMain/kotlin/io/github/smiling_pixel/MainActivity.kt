@@ -17,22 +17,15 @@ import io.github.smiling_pixel.client.GoogleSignInHelper
 
 class MainActivity : ComponentActivity() {
 
-    companion object {
-        private var launcherRegistered: Boolean = false
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        if (!launcherRegistered) {
-            GoogleSignInHelper.registerLauncher(
-                registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-                    GoogleSignInHelper.onActivityResult(result)
-                }
-            )
-            launcherRegistered = true
-        }
+        GoogleSignInHelper.registerLauncher(
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                GoogleSignInHelper.onActivityResult(result)
+            }
+        )
         AndroidContextProvider.context = this.applicationContext
 
         // Build Room-backed repository on Android and pass it into App
@@ -43,6 +36,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(repo, fileRepo)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        GoogleSignInHelper.unregisterLauncher()
     }
 }
 
