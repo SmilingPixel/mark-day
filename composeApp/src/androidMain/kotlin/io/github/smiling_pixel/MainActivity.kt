@@ -21,12 +21,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        AndroidContextProvider.context = this.applicationContext
+
         GoogleSignInHelper.registerLauncher(
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 GoogleSignInHelper.onActivityResult(result)
             }
         )
-        AndroidContextProvider.context = this.applicationContext
 
         // Build Room-backed repository on Android and pass it into App
         val db = createDatabase(this)

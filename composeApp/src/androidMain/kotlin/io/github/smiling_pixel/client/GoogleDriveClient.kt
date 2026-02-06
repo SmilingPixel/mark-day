@@ -92,8 +92,6 @@ class GoogleDriveClient : CloudDriveClient {
         checkAndInitService()
     }
 
-    The authorize() function in the Android implementation switches to Dispatchers.Main unnecessarily at the start. The function first checks authorization status using IO dispatcher (line 71), then the rest of the authorization logic also runs on Main. Since GoogleSignInHelper.launchSignIn likely needs to be on Main for launching the intent, consider restructuring the function to only switch to Main when necessary, and perform the initial authorization check on IO for better performance.
-
     override suspend fun authorize(): Boolean {
         // First, try to initialize the service on IO without switching to Main unnecessarily
         if (withContext(Dispatchers.IO) { checkAndInitService() }) return true
