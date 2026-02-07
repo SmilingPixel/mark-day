@@ -46,21 +46,28 @@ fun SettingsScreen() {
     var isAuthorized by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isCheckingAuth by remember { mutableStateOf(false) }
 
     val checkAuthStatus by rememberUpdatedState {
-        scope.launch {
-            try {
-                isAuthorized = cloudDriveClient.isAuthorized()
-                if (isAuthorized) {
-                    userInfo = cloudDriveClient.getUserInfo()
-                } else {
+        // use isCheckingAuth to prevent concurrent execution of the authentication status check
+        if (!isCheckingAuth) {
+            isCheckingAuth = true
+            scope.launch {
+                try {
+                    isAuthorized = cloudDriveClient.isAuthorized()
+                    if (isAuthorized) {
+                        userInfo = cloudDriveClient.getUserInfo()
+                    } else {
+                        userInfo = null
+                    }
+                } catch (e: Exception) {
+                    isAuthorized = false
                     userInfo = null
+                    // Fail silently on background check or set error if critical
+                    // errorMessage = "Failed to refresh status: ${e.message}"
+                } finally {
+                    isCheckingAuth = false
                 }
-            } catch (e: Exception) {
-                isAuthorized = false
-                userInfo = null
-                // Fail silently on background check or set error if critical
-                // errorMessage = "Failed to refresh status: ${e.message}"
             }
         }
     }

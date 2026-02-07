@@ -25,12 +25,16 @@ object GoogleSignInHelper {
         this.launcher = null
     }
 
-    fun onActivityResult(result: ActivityResult) {
-        if (authDeferred == null) {
-            Log.w("GoogleSignInHelper", "onActivityResult called but authDeferred is null. Unexpected activity result or cancelled sign-in.")
+    // Ensure thread-safe access.
+    // Otherwise, if onActivityResult is called concurrently with launchSignIn, the deferred could be completed and then immediately set to null, or vice versa, leading to inconsistent state.
+    suspend fun onActivityResult(result: ActivityResult) {
+        mutex.withLock {
+            if (authDeferred == null) {
+                Log.w("GoogleSignInHelper", "onActivityResult called but authDeferred is null. Unexpected activity result or cancelled sign-in.")
+            }
+            authDeferred?.complete(result)
+            authDeferred = null
         }
-        authDeferred?.complete(result)
-        authDeferred = null
     }
 
     suspend fun launchSignIn(intent: Intent): ActivityResult? {

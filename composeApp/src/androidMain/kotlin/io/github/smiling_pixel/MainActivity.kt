@@ -11,6 +11,8 @@ import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.fileManager
 import io.github.smiling_pixel.preference.AndroidContextProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 import androidx.activity.result.contract.ActivityResultContracts
 import io.github.smiling_pixel.client.GoogleSignInHelper
@@ -25,7 +27,9 @@ class MainActivity : ComponentActivity() {
 
         GoogleSignInHelper.registerLauncher(
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-                GoogleSignInHelper.onActivityResult(result)
+                lifecycleScope.launch {
+                    GoogleSignInHelper.onActivityResult(result)
+                }
             }
         )
 
