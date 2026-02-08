@@ -112,9 +112,9 @@ fun SettingsScreen() {
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (errorMessage != null) {
+        errorMessage?.let { msg ->
             Text(
-                text = errorMessage,
+                text = msg,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
