@@ -92,7 +92,8 @@ class GoogleDriveClient : CloudDriveClient {
 
     private fun getCredentials(httpTransport: NetHttpTransport): Credential {
         val flow = getFlow(httpTransport)
-        val receiver = LocalServerReceiver.Builder().setPort(8888).build()
+        // Use port 0 to let the system assign an available port automatically
+        val receiver = LocalServerReceiver.Builder().setPort(0).build()
         // authorize("user") authorizes for the "user" user ID.
         return AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
     }
