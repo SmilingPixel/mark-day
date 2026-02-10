@@ -25,13 +25,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
 import io.github.smiling_pixel.client.UserInfo
 import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.preference.getSettingsRepository
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
@@ -60,6 +60,9 @@ fun SettingsScreen() {
                     } else {
                         userInfo = null
                     }
+                } catch (e: CancellationException) {
+                    // Don't catch structured concurrency cancellation exceptions
+                    throw e
                 } catch (e: Exception) {
                     isAuthorized = false
                     userInfo = null
@@ -134,6 +137,9 @@ fun SettingsScreen() {
                             cloudDriveClient.signOut()
                             isAuthorized = false
                             userInfo = null
+                        } catch (e: CancellationException) {
+                            // Don't catch structured concurrency cancellation exceptions
+                            throw e
                         } catch (e: Exception) {
                             errorMessage = "Sign out failed: ${e.message}"
                         } finally {
@@ -166,6 +172,9 @@ fun SettingsScreen() {
                             } else {
                                 errorMessage = "Authorization was cancelled or failed."
                             }
+                        } catch (e: CancellationException) {
+                            // Don't catch structured concurrency cancellation exceptions
+                            throw e
                         } catch (e: Exception) {
                             errorMessage = "Authorization error: ${e.message}"
                         } finally {
