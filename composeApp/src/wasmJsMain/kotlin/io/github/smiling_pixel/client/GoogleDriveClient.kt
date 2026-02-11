@@ -31,7 +31,7 @@ class GoogleDriveClient : CloudDriveClient {
     }
 
     override suspend fun isAuthorized(): Boolean {
-        return false 
+        return false
     }
 
     override suspend fun authorize(): Boolean {
