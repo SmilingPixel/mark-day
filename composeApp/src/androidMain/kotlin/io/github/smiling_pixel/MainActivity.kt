@@ -11,12 +11,27 @@ import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.fileManager
 import io.github.smiling_pixel.preference.AndroidContextProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+
+import androidx.activity.result.contract.ActivityResultContracts
+import io.github.smiling_pixel.client.GoogleSignInHelper
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
         AndroidContextProvider.context = this.applicationContext
+
+        GoogleSignInHelper.registerLauncher(
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                lifecycleScope.launch {
+                    GoogleSignInHelper.onActivityResult(result)
+                }
+            }
+        )
 
         // Build Room-backed repository on Android and pass it into App
         val db = createDatabase(this)
@@ -26,6 +41,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(repo, fileRepo)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        GoogleSignInHelper.unregisterLauncher()
     }
 }
 
