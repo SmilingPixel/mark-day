@@ -5,7 +5,7 @@ This document provides essential guidelines and context for AI agents interactin
 ## 1. Project Context
 
 *   **Type**: Compose Multiplatform Diary Application.
-*   **Goal**: Develop and maintain a cross-platform diary app for Android, iOS, Desktop (JVM), and Web (JS/Wasm).
+*   **Goal**: Develop and maintain a cross-platform diary app for Android, Desktop (JVM), and Web (JS/Wasm). (**iOS development is suspended**)
 *   **Primary Language**: Kotlin.
 *   **UI Framework**: Jetpack Compose Multiplatform.
 *   **Build System**: Gradle.
@@ -20,7 +20,7 @@ This document provides essential guidelines and context for AI agents interactin
     *   **`composeApp/src/wasmJsMain/`**: WebAssembly-specific implementations (Web target).
     *   **`composeApp/src/nonWebMain/`**: Shared logic for non-web platforms (Android, iOS, Desktop).
     *   **`composeApp/src/commonMain/composeResources/`**: Shared assets (drawables, strings).
-*   **`iosApp/`**: Xcode project for iOS native app. Interacts with `composeApp` as a framework.
+*   **`iosApp/`**: Xcode project for iOS native app. Interacts with `composeApp` as a framework. **(Suspended)**
 
 ## 3. Core Development Directives for AI Agents
 
@@ -55,6 +55,7 @@ When modifying or generating code, adhere to the following:
 *   **Common Commands**:
     *   **Android**: `./gradlew installDebug` (Run on connected device/emulator)
     *   **Desktop**: `./gradlew run` (Run desktop application)
+    *   **Desktop (Jar)**: `./gradlew composeApp:jvmJar` (Build a jar file)
     *   **Web (Wasm)**: `./gradlew wasmJsBrowserRun` (Run in browser)
-    *   **iOS**: Open `iosApp/iosApp.xcodeproj` in Xcode and run.
+    *   **iOS**: **(Suspended)** Open `iosApp/iosApp.xcodeproj` in Xcode and run.
     *   **Tests**: `./gradlew check` (Run all checks) or `./gradlew allTests` (Run all tests)
