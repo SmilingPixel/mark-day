@@ -23,6 +23,8 @@ kotlin {
         }
     }
     
+    // Suspend iOS development
+    /*
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -32,6 +34,7 @@ kotlin {
             isStatic = true
         }
     }
+    */
     
     jvm()
     
@@ -94,10 +97,13 @@ kotlin {
         }
         androidMain.get().dependsOn(nonWebMain)
 
+        // Suspend iOS development: limited time
+        /*
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
         iosMain.get().dependsOn(nonWebMain)
+        */
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -152,8 +158,9 @@ android {
 dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspJvm", libs.androidx.room.compiler)
-    add("kspIosArm64", libs.androidx.room.compiler)
-    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+    // Suspend iOS development: limited time
+    // add("kspIosArm64", libs.androidx.room.compiler)
+    // add("kspIosSimulatorArm64", libs.androidx.room.compiler)
     debugImplementation(compose.uiTooling)
 }
 
