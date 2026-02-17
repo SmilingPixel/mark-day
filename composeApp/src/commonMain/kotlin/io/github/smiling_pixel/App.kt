@@ -39,6 +39,12 @@ import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.screens.EntriesScreen
+import io.github.smiling_pixel.screens.EntryDetailsScreen
+import io.github.smiling_pixel.screens.InsightsScreen
+import io.github.smiling_pixel.screens.MomentsScreen
+import io.github.smiling_pixel.screens.ProfileScreen
+import io.github.smiling_pixel.screens.SettingsScreen
 import coil3.compose.setSingletonImageLoaderFactory
 
 @Serializable

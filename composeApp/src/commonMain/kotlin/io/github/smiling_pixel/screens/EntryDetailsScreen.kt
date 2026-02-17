@@ -1,4 +1,4 @@
-package io.github.smiling_pixel
+package io.github.smiling_pixel.screens
 
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.client.WeatherClient
