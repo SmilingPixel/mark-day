@@ -17,24 +17,25 @@ plugins {
 // compatible with your Kotlin version (see notes).
 
 kotlin {
+    val enableIos = project.findProperty("enableIos")?.toString()?.toBoolean() == true
+
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
     
-    // Suspend iOS development
-    /*
-    listOf(
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
+    if (enableIos) {
+        listOf(
+            iosArm64(),
+            iosSimulatorArm64()
+        ).forEach { iosTarget ->
+            iosTarget.binaries.framework {
+                baseName = "ComposeApp"
+                isStatic = true
+            }
         }
     }
-    */
     
     jvm()
     
@@ -97,13 +98,14 @@ kotlin {
         }
         androidMain.get().dependsOn(nonWebMain)
 
-        // Suspend iOS development: limited time
-        /*
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
+        if (enableIos) {
+            val iosMain by getting {
+                dependencies {
+                    implementation(libs.ktor.client.darwin)
+                }
+                dependsOn(nonWebMain.get())
+            }
         }
-        iosMain.get().dependsOn(nonWebMain)
-        */
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -158,9 +160,10 @@ android {
 dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspJvm", libs.androidx.room.compiler)
-    // Suspend iOS development: limited time
-    // add("kspIosArm64", libs.androidx.room.compiler)
-    // add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+    if (project.findProperty("enableIos")?.toString()?.toBoolean() == true) {
+        add("kspIosArm64", libs.androidx.room.compiler)
+        add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+    }
     debugImplementation(compose.uiTooling)
 }
 
