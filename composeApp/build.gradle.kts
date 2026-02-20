@@ -103,7 +103,7 @@ kotlin {
                 dependencies {
                     implementation(libs.ktor.client.darwin)
                 }
-                dependsOn(nonWebMain.get())
+                dependsOn(nonWebMain)
             }
         }
 
