@@ -16,9 +16,9 @@ plugins {
 // if you want to enable annotation processing. Configure KSP with a version
 // compatible with your Kotlin version (see notes).
 
-kotlin {
-    val enableIos = project.findProperty("enableIos")?.toString()?.toBoolean() == true
+val enableIos = project.findProperty("enableIos")?.toString()?.toBoolean() == true
 
+kotlin {
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -160,7 +160,7 @@ android {
 dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspJvm", libs.androidx.room.compiler)
-    if (project.findProperty("enableIos")?.toString()?.toBoolean() == true) {
+    if (enableIos) {
         add("kspIosArm64", libs.androidx.room.compiler)
         add("kspIosSimulatorArm64", libs.androidx.room.compiler)
     }
