@@ -16,6 +16,8 @@ plugins {
 // if you want to enable annotation processing. Configure KSP with a version
 // compatible with your Kotlin version (see notes).
 
+val enableIos = project.findProperty("enableIos")?.toString()?.toBoolean() == true
+
 kotlin {
     androidTarget {
         compilerOptions {
@@ -23,13 +25,15 @@ kotlin {
         }
     }
     
-    listOf(
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
+    if (enableIos) {
+        listOf(
+            iosArm64(),
+            iosSimulatorArm64()
+        ).forEach { iosTarget ->
+            iosTarget.binaries.framework {
+                baseName = "ComposeApp"
+                isStatic = true
+            }
         }
     }
     
@@ -94,10 +98,14 @@ kotlin {
         }
         androidMain.get().dependsOn(nonWebMain)
 
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
+        if (enableIos) {
+            val iosMain by getting {
+                dependencies {
+                    implementation(libs.ktor.client.darwin)
+                }
+                dependsOn(nonWebMain)
+            }
         }
-        iosMain.get().dependsOn(nonWebMain)
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -152,8 +160,10 @@ android {
 dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspJvm", libs.androidx.room.compiler)
-    add("kspIosArm64", libs.androidx.room.compiler)
-    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+    if (enableIos) {
+        add("kspIosArm64", libs.androidx.room.compiler)
+        add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+    }
     debugImplementation(compose.uiTooling)
 }
 
