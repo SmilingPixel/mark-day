@@ -1,4 +1,4 @@
-package io.github.smiling_pixel
+package io.github.smiling_pixel.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
