@@ -125,8 +125,22 @@ fun SettingsScreen() {
         }
         
         if (isAuthorized) {
+            Text(
+                text = "Connected to Google Drive",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Text("Signed in as: ${userInfo?.name ?: "Loading..."}")
             Text("Email: ${userInfo?.email ?: ""}")
+            
+            var isCloudSyncEnabled by remember { mutableStateOf(false) }
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { isCloudSyncEnabled = !isCloudSyncEnabled }
+            ) {
+                Text(if (isCloudSyncEnabled) "Disable Cloud Sync" else "Enable Cloud Sync")
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
@@ -137,6 +151,7 @@ fun SettingsScreen() {
                             cloudDriveClient.signOut()
                             isAuthorized = false
                             userInfo = null
+                            isCloudSyncEnabled = false
                         } catch (e: CancellationException) {
                             // Don't catch structured concurrency cancellation exceptions
                             throw e
@@ -192,7 +207,7 @@ fun SettingsScreen() {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Authorize Google Drive")
+                Text("Connect to Google Drive")
             }
         }
 
