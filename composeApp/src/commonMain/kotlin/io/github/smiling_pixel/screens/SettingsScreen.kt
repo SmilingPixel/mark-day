@@ -135,6 +135,17 @@ fun SettingsScreen() {
             Text("Email: ${userInfo?.email ?: ""}")
             
             var isCloudSyncEnabled by remember { mutableStateOf(false) }
+            var cloudSyncPath by remember { mutableStateOf("/MarkDay") }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = cloudSyncPath,
+                onValueChange = { cloudSyncPath = it },
+                label = { Text("Cloud Sync Save Path") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            ) // TODO: better user experience for selecting folder in Google Drive @SmilingPixel
+            
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = { isCloudSyncEnabled = !isCloudSyncEnabled }
