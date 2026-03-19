@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -91,12 +92,26 @@ fun EntriesScreen(
         Scaffold(
             floatingActionButton = {
                 if (!isSelectionMode) {
-                    FloatingActionButton(
-                        onClick = { isCreating = true },
-                        shape = RoundedCornerShape(16.dp)
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
-                    }
+                        FloatingActionButton(
+                            onClick = {
+                                // TODO: Implement synchronization logic with Google Drive
+                                println("Syncing with Google Drive...")
+                            },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Sync with Google Drive")
+                        }
+                        FloatingActionButton(
+                            onClick = { isCreating = true },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
+                        }
+                    } // TODO: auto sync logic @SmilingPixel
                 }
             }
         ) { paddingValues ->
