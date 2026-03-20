@@ -7,6 +7,7 @@ import io.github.smiling_pixel.database.InMemoryDiaryDao
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.LocalDate
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -19,14 +20,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +51,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.Alignment
+import io.github.smiling_pixel.client.getCloudDriveClient
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant as KotlinTimeInstant
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalTime::class)
 @Composable
@@ -64,6 +71,29 @@ fun EntriesScreen(
     // currently-selected entry; null means list view (unless creating)
     var selectedEntry by remember { mutableStateOf<DiaryEntry?>(null) }
     var isCreating by remember { mutableStateOf(false) }
+
+    // sync state
+    var isSyncing by remember { mutableStateOf(false) }
+    var syncSummary by remember { mutableStateOf<String?>(null) }
+    var syncError by remember { mutableStateOf<String?>(null) }
+
+    if (syncSummary != null) {
+        AlertDialog(
+            onDismissRequest = { syncSummary = null },
+            title = { Text("Sync Summary") },
+            text = { Text(syncSummary!!) },
+            confirmButton = { Button(onClick = { syncSummary = null }) { Text("OK") } }
+        )
+    }
+
+    if (syncError != null) {
+        AlertDialog(
+            onDismissRequest = { syncError = null },
+            title = { Text("Sync Error") },
+            text = { Text(syncError!!) },
+            confirmButton = { Button(onClick = { syncError = null }) { Text("OK") } }
+        )
+    }
 
     if (isCreating || selectedEntry != null) {
         // Details view (New or Edit)
@@ -98,12 +128,30 @@ fun EntriesScreen(
                     ) {
                         FloatingActionButton(
                             onClick = {
-                                // TODO: Implement synchronization logic with Google Drive
-                                println("Syncing with Google Drive...")
+                                if (isSyncing) return@FloatingActionButton
+                                isSyncing = true
+                                scope.launch {
+                                    try {
+                                        val result = io.github.smiling_pixel.sync.performCloudSync(
+                                            client = getCloudDriveClient(),
+                                            repo = repo,
+                                            localEntries = entriesState
+                                        )
+                                        syncSummary = "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
+                                    } catch (e: Exception) {
+                                        syncError = e.message ?: "An unknown error occurred during sync"
+                                    } finally {
+                                        isSyncing = false
+                                    }
+                                }
                             },
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Sync with Google Drive")
+                            if (isSyncing) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = "Sync with Google Drive")
+                            }
                         }
                         FloatingActionButton(
                             onClick = { isCreating = true },
@@ -210,5 +258,4 @@ fun EntriesScreen(
         }
     }
 }
-
 
