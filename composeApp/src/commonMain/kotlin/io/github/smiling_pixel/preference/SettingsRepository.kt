@@ -5,6 +5,12 @@ import kotlinx.coroutines.flow.Flow
 interface SettingsRepository {
     val googleWeatherApiKey: Flow<String?>
     suspend fun setGoogleWeatherApiKey(key: String?)
+
+    val isCloudSyncEnabled: Flow<Boolean>
+    suspend fun setCloudSyncEnabled(enabled: Boolean)
+
+    val cloudSyncPath: Flow<String>
+    suspend fun setCloudSyncPath(path: String)
 }
 
 expect fun getSettingsRepository(): SettingsRepository

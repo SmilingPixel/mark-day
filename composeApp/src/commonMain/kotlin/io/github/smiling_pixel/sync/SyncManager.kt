@@ -3,6 +3,8 @@ package io.github.smiling_pixel.sync
 import io.github.smiling_pixel.client.CloudDriveClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.preference.getSettingsRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant as KotlinTimeInstant
@@ -19,11 +21,20 @@ suspend fun performCloudSync(
     repo: DiaryRepository,
     localEntries: List<DiaryEntry>
 ): SyncResult {
+    val settings = getSettingsRepository()
+    val isEnabled = settings.isCloudSyncEnabled.first()
+    if (!isEnabled) {
+        throw Exception("Cloud Sync is disabled. Please enable it in Settings.")
+    }
+
     if (!client.isAuthorized()) {
         throw Exception("Not connected to Google Drive. Please connect in Settings.")
     }
 
-    val remoteFiles = client.listFiles(null).filter { it.name.startsWith("markday_entry_") }
+    val syncPath = settings.cloudSyncPath.first()
+    val parentId = getOrCreateFolderByPath(client, syncPath)
+
+    val remoteFiles = client.listFiles(parentId).filter { it.name.startsWith("markday_entry_") }
     val remoteFileMap = mutableMapOf<Int, Pair<io.github.smiling_pixel.client.DriveFile, Long>>()
     for (f in remoteFiles) {
         try {
@@ -55,7 +66,7 @@ suspend fun performCloudSync(
             if (localTime > remoteTime) {
                 client.deleteFile(driveFile.id)
                 val name = "markday_entry_${local.id}_${localTime}.json"
-                client.createFile(name, encodeEntryForSync(local), "application/json", null)
+                client.createFile(name, encodeEntryForSync(local), "application/json", parentId)
                 uploaded++
             } else if (remoteTime > localTime) {
                 val remoteContent = client.downloadFile(driveFile.id)
@@ -70,7 +81,7 @@ suspend fun performCloudSync(
             remoteFileMap.remove(local.id)
         } else {
             val name = "markday_entry_${local.id}_${localTime}.json"
-            client.createFile(name, encodeEntryForSync(local), "application/json", null)
+            client.createFile(name, encodeEntryForSync(local), "application/json", parentId)
             uploaded++
         }
     }
@@ -88,6 +99,22 @@ suspend fun performCloudSync(
 
     // TODO: Optimise the synchronization process in the future (e.g., batch operations, or more efficient incremental sync).
     return SyncResult(uploaded, downloaded, unchanged)
+}
+
+private suspend fun getOrCreateFolderByPath(client: CloudDriveClient, path: String): String? {
+    val folders = path.split("/").filter { it.isNotBlank() }
+    if (folders.isEmpty()) return null
+    
+    var currentParentId: String? = null
+    for (folderName in folders) {
+        val files = client.listFiles(currentParentId)
+        var folder = files.firstOrNull { it.name == folderName && it.isFolder }
+        if (folder == null) {
+            folder = client.createFolder(folderName, currentParentId)
+        }
+        currentParentId = folder.id
+    }
+    return currentParentId
 }
 
 // TODO: better encode/decode solution in the future (e.g., JSON or protobuf) to handle edge cases and be more robust.@SmilingPixel

@@ -41,6 +41,9 @@ fun SettingsScreen() {
     val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
     val uriHandler = LocalUriHandler.current
 
+    val isCloudSyncEnabled by settingsRepository.isCloudSyncEnabled.collectAsState(initial = false)
+    val cloudSyncPath by settingsRepository.cloudSyncPath.collectAsState(initial = "/MarkDay")
+
     val cloudDriveClient = remember { getCloudDriveClient() }
     var userInfo by remember { mutableStateOf<UserInfo?>(null) }
     var isAuthorized by remember { mutableStateOf(false) }
@@ -134,13 +137,14 @@ fun SettingsScreen() {
             Text("Signed in as: ${userInfo?.name ?: "Loading..."}")
             Text("Email: ${userInfo?.email ?: ""}")
             
-            var isCloudSyncEnabled by remember { mutableStateOf(false) }
-            var cloudSyncPath by remember { mutableStateOf("/MarkDay") }
-            
             Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
                 value = cloudSyncPath,
-                onValueChange = { cloudSyncPath = it },
+                onValueChange = { 
+                    scope.launch { 
+                        settingsRepository.setCloudSyncPath(it) 
+                    }
+                },
                 label = { Text("Cloud Sync Save Path") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -148,7 +152,11 @@ fun SettingsScreen() {
             
             Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = { isCloudSyncEnabled = !isCloudSyncEnabled }
+                onClick = { 
+                    scope.launch {
+                        settingsRepository.setCloudSyncEnabled(!isCloudSyncEnabled)
+                    }
+                }
             ) {
                 Text(if (isCloudSyncEnabled) "Disable Cloud Sync" else "Enable Cloud Sync")
             }
@@ -162,7 +170,7 @@ fun SettingsScreen() {
                             cloudDriveClient.signOut()
                             isAuthorized = false
                             userInfo = null
-                            isCloudSyncEnabled = false
+                            settingsRepository.setCloudSyncEnabled(false)
                         } catch (e: CancellationException) {
                             // Don't catch structured concurrency cancellation exceptions
                             throw e
