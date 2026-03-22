@@ -52,6 +52,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.Alignment
 import io.github.smiling_pixel.client.getCloudDriveClient
+import androidx.compose.runtime.LaunchedEffect
+import io.github.smiling_pixel.sync.startAutoSync
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant as KotlinTimeInstant
 
@@ -67,6 +69,10 @@ fun EntriesScreen(
 ) {
     val entriesState by repo.entries.collectAsState()
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        startAutoSync(repo)
+    }
 
     // currently-selected entry; null means list view (unless creating)
     var selectedEntry by remember { mutableStateOf<DiaryEntry?>(null) }
@@ -159,7 +165,7 @@ fun EntriesScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
                         }
-                    } // TODO: auto sync logic @SmilingPixel
+                    }
                 }
             }
         ) { paddingValues ->
