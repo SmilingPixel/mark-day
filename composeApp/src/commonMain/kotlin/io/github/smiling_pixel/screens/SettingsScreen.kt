@@ -42,6 +42,7 @@ fun SettingsScreen() {
     val uriHandler = LocalUriHandler.current
 
     val isCloudSyncEnabled by settingsRepository.isCloudSyncEnabled.collectAsState(initial = false)
+    val isAutoSyncEnabled by settingsRepository.isAutoSyncEnabled.collectAsState(initial = false)
     val cloudSyncPath by settingsRepository.cloudSyncPath.collectAsState(initial = "/MarkDay")
 
     val cloudDriveClient = remember { getCloudDriveClient() }
@@ -160,6 +161,18 @@ fun SettingsScreen() {
             ) {
                 Text(if (isCloudSyncEnabled) "Disable Cloud Sync" else "Enable Cloud Sync")
             }
+            if (isCloudSyncEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { 
+                        scope.launch {
+                            settingsRepository.setAutoSyncEnabled(!isAutoSyncEnabled)
+                        }
+                    }
+                ) {
+                    Text(if (isAutoSyncEnabled) "Disable Auto Sync" else "Enable Auto Sync")
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
@@ -171,6 +184,7 @@ fun SettingsScreen() {
                             isAuthorized = false
                             userInfo = null
                             settingsRepository.setCloudSyncEnabled(false)
+                            settingsRepository.setAutoSyncEnabled(false)
                         } catch (e: CancellationException) {
                             // Don't catch structured concurrency cancellation exceptions
                             throw e

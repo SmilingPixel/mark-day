@@ -9,6 +9,9 @@ interface SettingsRepository {
     val isCloudSyncEnabled: Flow<Boolean>
     suspend fun setCloudSyncEnabled(enabled: Boolean)
 
+    val isAutoSyncEnabled: Flow<Boolean>
+    suspend fun setAutoSyncEnabled(enabled: Boolean)
+
     val cloudSyncPath: Flow<String>
     suspend fun setCloudSyncPath(path: String)
 }
