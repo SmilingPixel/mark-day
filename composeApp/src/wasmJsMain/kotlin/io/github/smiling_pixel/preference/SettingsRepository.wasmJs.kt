@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class WasmJsSettingsRepository : SettingsRepository {
     private val _apiKey = MutableStateFlow(localStorage.getItem("weather_api_key"))
     private val _isCloudSyncEnabled = MutableStateFlow(localStorage.getItem("is_cloud_sync_enabled") == "true")
+    private val _isAutoSyncEnabled = MutableStateFlow(localStorage.getItem("is_auto_sync_enabled") == "true")
     private val _cloudSyncPath = MutableStateFlow(localStorage.getItem("cloud_sync_path") ?: "/MarkDay")
 
     override val googleWeatherApiKey: Flow<String?> = _apiKey.asStateFlow()
@@ -26,6 +27,13 @@ class WasmJsSettingsRepository : SettingsRepository {
     override suspend fun setCloudSyncEnabled(enabled: Boolean) {
         localStorage.setItem("is_cloud_sync_enabled", enabled.toString())
         _isCloudSyncEnabled.value = enabled
+    }
+
+    override val isAutoSyncEnabled: Flow<Boolean> = _isAutoSyncEnabled.asStateFlow()
+
+    override suspend fun setAutoSyncEnabled(enabled: Boolean) {
+        localStorage.setItem("is_auto_sync_enabled", enabled.toString())
+        _isAutoSyncEnabled.value = enabled
     }
 
     override val cloudSyncPath: Flow<String> = _cloudSyncPath.asStateFlow()

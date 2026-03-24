@@ -27,6 +27,7 @@ private val dataStore: DataStore<Preferences> by lazy {
 class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>) : SettingsRepository {
     private val WEATHER_API_KEY = stringPreferencesKey("weather_api_key")
     private val IS_CLOUD_SYNC_ENABLED = booleanPreferencesKey("is_cloud_sync_enabled")
+    private val IS_AUTO_SYNC_ENABLED = booleanPreferencesKey("is_auto_sync_enabled")
     private val CLOUD_SYNC_PATH = stringPreferencesKey("cloud_sync_path")
 
     override val googleWeatherApiKey: Flow<String?> = dataStore.data
@@ -52,6 +53,17 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
     override suspend fun setCloudSyncEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[IS_CLOUD_SYNC_ENABLED] = enabled
+        }
+    }
+
+    override val isAutoSyncEnabled: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[IS_AUTO_SYNC_ENABLED] ?: false
+        }
+
+    override suspend fun setAutoSyncEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_AUTO_SYNC_ENABLED] = enabled
         }
     }
 

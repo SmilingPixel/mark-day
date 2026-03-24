@@ -17,7 +17,7 @@ actual fun startAutoSync(repo: DiaryRepository) {
             delay(15 * 60 * 1000L) // 15 mins
             try {
                 val settings = getSettingsRepository()
-                if (settings.isCloudSyncEnabled.first()) {
+                if (settings.isCloudSyncEnabled.first() && settings.isAutoSyncEnabled.first()) {
                     val client = getCloudDriveClient()
                     if (client.isAuthorized()) {
                         performCloudSync(client, repo, repo.entries.value)
