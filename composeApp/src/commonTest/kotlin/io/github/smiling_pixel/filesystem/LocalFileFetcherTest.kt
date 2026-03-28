@@ -1,7 +1,6 @@
 package io.github.smiling_pixel.filesystem
 
 import coil3.ImageLoader
-import coil3.PlatformContext
 import coil3.Uri
 import coil3.decode.DataSource
 import coil3.fetch.SourceFetchResult
