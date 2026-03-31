@@ -30,10 +30,10 @@ class InMemoryDiaryDao(initial: List<DiaryEntry> = emptyList()) : IDiaryDao {
     override suspend fun update(entry: DiaryEntry) {
         val now = Clock.System.now()
         val updated = entry.copy(updatedAt = now)
-        state.value = state.value.map { if (it.id == entry.id) updated else it }
+        state.value = state.value.map { if (it.syncId == entry.syncId) updated else it }
     }
 
     override suspend fun delete(entry: DiaryEntry) {
-        state.value = state.value.filterNot { it.id == entry.id }
+        state.value = state.value.filterNot { it.syncId == entry.syncId }
     }
 }

@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity
 data class RoomDiaryEntry(
     @PrimaryKey(autoGenerate = true) val id: Int,
+    val syncId: String,
     val title: String,
     val content: String,
     // store timestamps as epoch milliseconds for Room persistence

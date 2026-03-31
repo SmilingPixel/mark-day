@@ -63,9 +63,9 @@ fun EntriesScreen(
     repo: DiaryRepository,
     weatherClient: WeatherClient,
     isSelectionMode: Boolean,
-    selectedIds: Set<Int>,
+    selectedIds: Set<String>,
     onSelectionModeChange: (Boolean) -> Unit,
-    onSelectionChange: (Set<Int>) -> Unit
+    onSelectionChange: (Set<String>) -> Unit
 ) {
     val entriesState by repo.entries.collectAsState()
     val scope = rememberCoroutineScope()
@@ -177,7 +177,7 @@ fun EntriesScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(entriesState, key = { it.id }) { entry ->
-                    val isSelected = entry.id in selectedIds
+                    val isSelected = entry.syncId in selectedIds
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -185,7 +185,11 @@ fun EntriesScreen(
                             .combinedClickable(
                                 onClick = {
                                     if (isSelectionMode) {
-                                        val newSelection = if (isSelected) selectedIds - entry.id else selectedIds + entry.id
+                                        val newSelection = if (isSelected) {
+                                            selectedIds - entry.syncId
+                                        } else {
+                                            selectedIds + entry.syncId
+                                        }
                                         onSelectionChange(newSelection)
                                         if (newSelection.isEmpty()) {
                                             onSelectionModeChange(false)
@@ -197,7 +201,7 @@ fun EntriesScreen(
                                 onLongClick = {
                                     if (!isSelectionMode) {
                                         onSelectionModeChange(true)
-                                        onSelectionChange(setOf(entry.id))
+                                        onSelectionChange(setOf(entry.syncId))
                                     }
                                 }
                             ),

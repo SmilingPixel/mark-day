@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import io.github.smiling_pixel.model.RoomDiaryEntry
 import io.github.smiling_pixel.model.RoomFileMetadata
 
-@Database(entities = [RoomDiaryEntry::class, RoomFileMetadata::class], version = 3)
+@Database(entities = [RoomDiaryEntry::class, RoomFileMetadata::class], version = 4)
 @TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase(), IAppDatabase {
