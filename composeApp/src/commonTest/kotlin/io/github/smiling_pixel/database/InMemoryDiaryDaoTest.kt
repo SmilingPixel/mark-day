@@ -20,6 +20,7 @@ class InMemoryDiaryDaoTest {
         assertEquals(1, allEntries.size)
         assertEquals(id, allEntries.first().id)
         assertEquals("Test Title", allEntries.first().title)
+        assertTrue(allEntries.first().syncId.isNotBlank())
     }
 
     @Test
@@ -28,12 +29,14 @@ class InMemoryDiaryDaoTest {
         val entry = DiaryEntry(id = 0, title = "Title", content = "Content")
         val id = dao.insert(entry)
         
-        val updatedEntry = dao.getAll().first().copy(title = "Updated Title")
+        val original = dao.getAll().first()
+        val updatedEntry = original.copy(title = "Updated Title")
         dao.update(updatedEntry)
         
         val allEntries = dao.getAll()
         assertEquals(1, allEntries.size)
         assertEquals("Updated Title", allEntries.first().title)
+        assertEquals(original.syncId, allEntries.first().syncId)
     }
 
     @Test
