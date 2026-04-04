@@ -9,12 +9,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.logging.Level
+import java.util.logging.Logger
+
+private const val AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000L
+private const val AUTO_SYNC_MAX_BACKOFF_MS = 2 * 60 * 60 * 1000L
+private val autoSyncLogger: Logger = Logger.getLogger("AutoSync")
 
 actual fun startAutoSync(repo: DiaryRepository) {
     // JVM platform: runs a simple timer loop in the background while the application is alive.
     CoroutineScope(Dispatchers.Default).launch {
+        var nextDelayMs = AUTO_SYNC_INTERVAL_MS
         while (isActive) {
-            delay(15 * 60 * 1000L) // 15 mins
+            delay(nextDelayMs)
             try {
                 val settings = getSettingsRepository()
                 if (settings.isCloudSyncEnabled.first() && settings.isAutoSyncEnabled.first()) {
@@ -23,8 +30,14 @@ actual fun startAutoSync(repo: DiaryRepository) {
                         performCloudSync(client, repo, repo.entries.value)
                     }
                 }
+                nextDelayMs = AUTO_SYNC_INTERVAL_MS
             } catch (e: Exception) {
-                // Ignore silent sync errors
+                autoSyncLogger.log(
+                    Level.SEVERE,
+                    "Auto-sync failed; retry interval will back off.",
+                    e,
+                )
+                nextDelayMs = (nextDelayMs * 2).coerceAtMost(AUTO_SYNC_MAX_BACKOFF_MS)
             }
         }
     }

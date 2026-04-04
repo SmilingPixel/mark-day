@@ -1,5 +1,6 @@
 package io.github.smiling_pixel.sync
 
+import android.util.Log
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.preference.getSettingsRepository
@@ -10,12 +11,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+private const val AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000L
+private const val AUTO_SYNC_MAX_BACKOFF_MS = 2 * 60 * 60 * 1000L
+private const val AUTO_SYNC_LOG_TAG = "AutoSync"
+
 actual fun startAutoSync(repo: DiaryRepository) {
     // TODO: Ideally, implement Android WorkManager for guaranteed background execution.
     // For now, running a periodic coroutine in the app's lifecycle to sync every 15 minutes.
     CoroutineScope(Dispatchers.Default).launch {
+        var nextDelayMs = AUTO_SYNC_INTERVAL_MS
         while (isActive) {
-            delay(15 * 60 * 1000L) // 15 mins
+            delay(nextDelayMs)
             try {
                 val settings = getSettingsRepository()
                 if (settings.isCloudSyncEnabled.first() && settings.isAutoSyncEnabled.first()) {
@@ -24,8 +30,14 @@ actual fun startAutoSync(repo: DiaryRepository) {
                         performCloudSync(client, repo, repo.entries.value)
                     }
                 }
+                nextDelayMs = AUTO_SYNC_INTERVAL_MS
             } catch (e: Exception) {
-                // Ignore silent sync errors
+                Log.e(
+                    AUTO_SYNC_LOG_TAG,
+                    "Auto-sync failed; retry interval will back off.",
+                    e,
+                )
+                nextDelayMs = (nextDelayMs * 2).coerceAtMost(AUTO_SYNC_MAX_BACKOFF_MS)
             }
         }
     }
