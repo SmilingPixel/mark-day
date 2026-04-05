@@ -12,8 +12,6 @@ import kotlinx.coroutines.launch
 import java.util.logging.Level
 import java.util.logging.Logger
 
-private const val AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000L
-private const val AUTO_SYNC_MAX_BACKOFF_MS = 2 * 60 * 60 * 1000L
 private val autoSyncLogger: Logger = Logger.getLogger("AutoSync")
 
 actual fun startAutoSync(repo: DiaryRepository) {
@@ -34,7 +32,7 @@ actual fun startAutoSync(repo: DiaryRepository) {
             } catch (e: Exception) {
                 autoSyncLogger.log(
                     Level.SEVERE,
-                    "Auto-sync failed; retry interval will back off.",
+                    AUTO_SYNC_ERROR_MESSAGE,
                     e,
                 )
                 nextDelayMs = (nextDelayMs * 2).coerceAtMost(AUTO_SYNC_MAX_BACKOFF_MS)
