@@ -6,15 +6,20 @@ import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.preference.getSettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-actual fun startAutoSync(repo: DiaryRepository) {
+private var autoSyncJob: Job? = null
+
+actual fun startAutoSync(repo: DiaryRepository): Job? {
+    autoSyncJob?.takeIf { it.isActive }?.let { return it }
+
     // TODO: Ideally, implement Android WorkManager for guaranteed background execution.
     // For now, running a periodic coroutine in the app's lifecycle to sync every 15 minutes.
-    CoroutineScope(Dispatchers.Default).launch {
+    val job = CoroutineScope(Dispatchers.Default).launch {
         var nextDelayMs = AUTO_SYNC_INTERVAL_MS
         while (isActive) {
             delay(nextDelayMs)
@@ -37,4 +42,13 @@ actual fun startAutoSync(repo: DiaryRepository) {
             }
         }
     }
+
+    autoSyncJob = job
+    job.invokeOnCompletion {
+        if (autoSyncJob === job) {
+            autoSyncJob = null
+        }
+    }
+
+    return job
 }
