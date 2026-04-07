@@ -72,7 +72,7 @@ suspend fun performCloudSync(
             if (localTime > remoteTime) {
                 client.deleteFile(driveFile.id)
                 val name = buildRemoteEntryFileName(local.syncId, localTime)
-                client.createFile(name, encodeEntryForSync(local), "application/json", parentId)
+                client.createFile(name, encodeEntryForSync(local), SYNC_ENTRY_MIME_TYPE, parentId)
                 uploaded++
             } else if (remoteTime > localTime) {
                 val remoteContent = client.downloadFile(driveFile.id)
@@ -87,7 +87,7 @@ suspend fun performCloudSync(
             remoteFileMap.remove(local.syncId)
         } else {
             val name = buildRemoteEntryFileName(local.syncId, localTime)
-            client.createFile(name, encodeEntryForSync(local), "application/json", parentId)
+            client.createFile(name, encodeEntryForSync(local), SYNC_ENTRY_MIME_TYPE, parentId)
             uploaded++
         }
     }
@@ -124,12 +124,14 @@ private suspend fun getOrCreateFolderByPath(client: CloudDriveClient, path: Stri
 }
 
 private fun buildRemoteEntryFileName(syncId: String, timestampMillis: Long): String {
-    return "markday_entry_${syncId}_${timestampMillis}.json"
+    return "markday_entry_${syncId}_${timestampMillis}${SYNC_ENTRY_FILE_EXTENSION}"
 }
 
 private fun parseRemoteEntryFileName(fileName: String): Pair<String, Long>? {
-    if (!fileName.startsWith("markday_entry_") || !fileName.endsWith(".json")) return null
-    val core = fileName.removePrefix("markday_entry_").removeSuffix(".json")
+    if (!fileName.startsWith("markday_entry_") || !fileName.endsWith(SYNC_ENTRY_FILE_EXTENSION)) return null
+
+    val core = fileName.removePrefix("markday_entry_").removeSuffix(SYNC_ENTRY_FILE_EXTENSION)
+
     val separatorIndex = core.lastIndexOf('_')
     if (separatorIndex <= 0 || separatorIndex == core.lastIndex) return null
 
@@ -146,6 +148,9 @@ private fun looksLikeUuid(value: String): Boolean {
     val pattern = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
     return pattern.matches(value)
 }
+
+private const val SYNC_ENTRY_FILE_EXTENSION = ".txt"
+private const val SYNC_ENTRY_MIME_TYPE = "text/plain"
 
 // TODO: better encode/decode solution in the future (e.g., JSON or protobuf) to handle edge cases and be more robust.@SmilingPixel
 @OptIn(ExperimentalTime::class)
