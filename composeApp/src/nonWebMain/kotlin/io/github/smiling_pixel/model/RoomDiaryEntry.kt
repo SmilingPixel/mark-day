@@ -1,9 +1,10 @@
 package io.github.smiling_pixel.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity
+@Entity(indices = [Index(value = ["syncId"], unique = true)])
 data class RoomDiaryEntry(
     @PrimaryKey(autoGenerate = true) val id: Int,
     val syncId: String,
