@@ -7,6 +7,8 @@ import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.util.generateSyncId
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant as KotlinTimeInstant
 
@@ -152,25 +154,74 @@ private fun looksLikeUuid(value: String): Boolean {
 private const val SYNC_ENTRY_FILE_EXTENSION = ".txt"
 private const val SYNC_ENTRY_MIME_TYPE = "text/plain"
 
-// TODO: better encode/decode solution in the future (e.g., JSON or protobuf) to handle edge cases and be more robust.@SmilingPixel
+private val syncPayloadJson = Json {
+    ignoreUnknownKeys = true
+}
+
+@Serializable
+private data class SyncEntryPayload(
+    val syncId: String,
+    val title: String,
+    val createdAtEpochMillis: Long,
+    val updatedAtEpochMillis: Long,
+    val entryDateIso: String,
+    val weatherCondition: String? = null,
+    val minTemperature: Double? = null,
+    val maxTemperature: Double? = null,
+    val content: String,
+)
+
 @OptIn(ExperimentalTime::class)
 internal fun encodeEntryForSync(entry: DiaryEntry): ByteArray {
-    val builder = StringBuilder()
-    builder.appendLine(entry.syncId)
-    builder.appendLine(entry.title)
-    builder.appendLine(entry.createdAt.toEpochMilliseconds().toString())
-    builder.appendLine(entry.updatedAt.toEpochMilliseconds().toString())
-    builder.appendLine(entry.entryDate.toString())
-    builder.appendLine(entry.weatherCondition ?: "")
-    builder.appendLine(entry.minTemperature?.toString() ?: "")
-    builder.appendLine(entry.maxTemperature?.toString() ?: "")
-    builder.appendLine(entry.content)
-    return builder.toString().encodeToByteArray()
+    val payload = SyncEntryPayload(
+        syncId = entry.syncId,
+        title = entry.title,
+        createdAtEpochMillis = entry.createdAt.toEpochMilliseconds(),
+        updatedAtEpochMillis = entry.updatedAt.toEpochMilliseconds(),
+        entryDateIso = entry.entryDate.toString(),
+        weatherCondition = entry.weatherCondition,
+        minTemperature = entry.minTemperature,
+        maxTemperature = entry.maxTemperature,
+        content = entry.content
+    )
+    return syncPayloadJson.encodeToString(SyncEntryPayload.serializer(), payload).encodeToByteArray()
 }
 
 @OptIn(ExperimentalTime::class)
 internal fun decodeEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEntry? {
     try {
+        val text = bytes.decodeToString()
+        val payload = syncPayloadJson.decodeFromString(SyncEntryPayload.serializer(), text)
+        val syncId = payload.syncId
+        if (!looksLikeUuid(syncId)) return null
+
+        val title = payload.title
+        val createdAt = KotlinTimeInstant.fromEpochMilliseconds(payload.createdAtEpochMillis)
+        val updatedAt = KotlinTimeInstant.fromEpochMilliseconds(payload.updatedAtEpochMillis)
+        val entryDate = LocalDate.parse(payload.entryDateIso)
+        val weatherCondition = payload.weatherCondition
+        val minTemperature = payload.minTemperature
+        val maxTemperature = payload.maxTemperature
+        val content = payload.content
+        return original.copy(
+            syncId = syncId,
+            title = title,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            entryDate = entryDate,
+            weatherCondition = weatherCondition,
+            minTemperature = minTemperature,
+            maxTemperature = maxTemperature,
+            content = content
+        )
+    } catch (e: Exception) {
+        return decodeLegacyLineDelimitedEntryForSync(bytes, original)
+    }
+}
+
+@OptIn(ExperimentalTime::class)
+private fun decodeLegacyLineDelimitedEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEntry? {
+    return try {
         val text = bytes.decodeToString()
         val lines = text.lines()
         if (lines.size < 9) return null
@@ -190,7 +241,7 @@ internal fun decodeEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEn
             contentLines = contentLines.dropLast(1)
         }
         val content = contentLines.joinToString("\n")
-        return original.copy(
+        original.copy(
             syncId = syncId,
             title = title,
             createdAt = createdAt,
@@ -202,6 +253,6 @@ internal fun decodeEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEn
             content = content
         )
     } catch (e: Exception) {
-        return null
+        null
     }
 }
