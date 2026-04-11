@@ -5,6 +5,7 @@ import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.preference.getSettingsRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,6 +33,9 @@ actual fun startAutoSync(repo: DiaryRepository): Job? {
                     }
                 }
                 nextDelayMs = AUTO_SYNC_INTERVAL_MS
+            } catch (e: CancellationException) {
+                // Do not treat normal coroutine cancellation as a sync failure.
+                throw e
             } catch (e: Exception) {
                 Log.e(
                     AUTO_SYNC_LOG_TAG,

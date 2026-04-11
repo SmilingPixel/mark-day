@@ -148,6 +148,7 @@ fun EntriesScreen(
                                         )
                                         syncSummary = "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
                                     } catch (e: CancellationException) {
+                                        // Preserve coroutine cancellation instead of showing it as a sync error.
                                         throw e
                                     } catch (e: Exception) {
                                         syncError = e.message ?: "An unknown error occurred during sync"
