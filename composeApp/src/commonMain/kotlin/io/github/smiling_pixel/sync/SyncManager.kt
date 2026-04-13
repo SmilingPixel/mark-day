@@ -72,9 +72,10 @@ suspend fun performCloudSync(
         if (remote != null) {
             val (driveFile, remoteTime) = remote
             if (localTime > remoteTime) {
-                client.deleteFile(driveFile.id)
                 val name = buildRemoteEntryFileName(local.syncId, localTime)
                 client.createFile(name, encodeEntryForSync(local), SYNC_ENTRY_MIME_TYPE, parentId)
+                // Delete old file only after successful upload to avoid losing the only remote copy.
+                runCatching { client.deleteFile(driveFile.id) }
                 uploaded++
             } else if (remoteTime > localTime) {
                 val remoteContent = client.downloadFile(driveFile.id)
