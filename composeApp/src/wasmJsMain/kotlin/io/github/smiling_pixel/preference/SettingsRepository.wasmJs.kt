@@ -10,6 +10,8 @@ class WasmJsSettingsRepository : SettingsRepository {
     private val _isCloudSyncEnabled = MutableStateFlow(localStorage.getItem("is_cloud_sync_enabled") == "true")
     private val _isAutoSyncEnabled = MutableStateFlow(localStorage.getItem("is_auto_sync_enabled") == "true")
     private val _cloudSyncPath = MutableStateFlow(localStorage.getItem("cloud_sync_path") ?: "/MarkDay")
+    private val _cloudSyncDeletionTombstonesJson =
+        MutableStateFlow(localStorage.getItem("cloud_sync_deletion_tombstones_json"))
 
     override val googleWeatherApiKey: Flow<String?> = _apiKey.asStateFlow()
 
@@ -41,6 +43,18 @@ class WasmJsSettingsRepository : SettingsRepository {
     override suspend fun setCloudSyncPath(path: String) {
         localStorage.setItem("cloud_sync_path", path)
         _cloudSyncPath.value = path
+    }
+
+    override val cloudSyncDeletionTombstonesJson: Flow<String?> = _cloudSyncDeletionTombstonesJson.asStateFlow()
+
+    override suspend fun setCloudSyncDeletionTombstonesJson(value: String?) {
+        if (value.isNullOrBlank()) {
+            localStorage.removeItem("cloud_sync_deletion_tombstones_json")
+            _cloudSyncDeletionTombstonesJson.value = null
+        } else {
+            localStorage.setItem("cloud_sync_deletion_tombstones_json", value)
+            _cloudSyncDeletionTombstonesJson.value = value
+        }
     }
 }
 

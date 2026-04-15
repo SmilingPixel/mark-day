@@ -14,6 +14,9 @@ interface SettingsRepository {
 
     val cloudSyncPath: Flow<String>
     suspend fun setCloudSyncPath(path: String)
+
+    val cloudSyncDeletionTombstonesJson: Flow<String?>
+    suspend fun setCloudSyncDeletionTombstonesJson(value: String?)
 }
 
 expect fun getSettingsRepository(): SettingsRepository

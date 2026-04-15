@@ -127,6 +127,74 @@ class SyncManagerTest {
     }
 
     @Test
+    fun localDelete_uploadsTombstoneAndDeletesRemoteEntry() = runTest {
+        configureSyncSettings(enabled = true, path = "/")
+
+        val syncId = "333e4567-e89b-12d3-a456-426614174000"
+        val localEntry = diaryEntry(
+            syncId = syncId,
+            title = "Local",
+            content = "Content",
+            createdAtMs = 1_000,
+            updatedAtMs = 2_000,
+        )
+
+        val dao = InMemoryDiaryDao(initial = listOf(localEntry))
+        val repo = DiaryRepository(dao)
+        repo.delete(localEntry)
+
+        val client = FakeCloudDriveClient(authorized = true)
+        client.seedFile(
+            name = remoteEntryFileName(syncId, 2_000),
+            content = encodeEntryForSync(localEntry),
+        )
+
+        val result = performCloudSync(client, repo, dao.getAll())
+
+        assertEquals(SyncResult(uploaded = 1, downloaded = 0, unchanged = 0), result)
+        val entryFiles = client.listFiles(null).filter { it.name.startsWith("markday_entry_") }
+        assertTrue(entryFiles.isEmpty())
+
+        val tombstoneFiles = client.listFiles(null).filter { it.name.startsWith("markday_tombstone_") }
+        assertEquals(1, tombstoneFiles.size)
+        assertTrue(tombstoneFiles.first().name.startsWith("markday_tombstone_${syncId}_"))
+    }
+
+    @Test
+    fun remoteTombstone_deletesLocalAndDoesNotRestore() = runTest {
+        configureSyncSettings(enabled = true, path = "/")
+
+        val syncId = "343e4567-e89b-12d3-a456-426614174000"
+        val localEntry = diaryEntry(
+            syncId = syncId,
+            title = "Existing",
+            content = "Will be deleted",
+            createdAtMs = 1_000,
+            updatedAtMs = 2_000,
+        )
+        val dao = InMemoryDiaryDao(initial = listOf(localEntry))
+        val repo = DiaryRepository(dao)
+
+        val client = FakeCloudDriveClient(authorized = true)
+        client.seedFile(
+            name = remoteEntryFileName(syncId, 2_000),
+            content = encodeEntryForSync(localEntry),
+        )
+        client.seedFile(
+            name = remoteTombstoneFileName(syncId, 3_000),
+            content = "{}".encodeToByteArray(),
+        )
+
+        val result = performCloudSync(client, repo, dao.getAll())
+
+        assertEquals(SyncResult(uploaded = 0, downloaded = 1, unchanged = 0), result)
+        assertTrue(dao.getAll().isEmpty())
+
+        val remainingEntryFiles = client.listFiles(null).filter { it.name.startsWith("markday_entry_") }
+        assertTrue(remainingEntryFiles.isEmpty())
+    }
+
+    @Test
     fun localNewer_whenCreateFails_keepsOldRemoteFile() = runTest {
         configureSyncSettings(enabled = true, path = "/")
 
@@ -177,6 +245,7 @@ class SyncManagerTest {
         val settings = getSettingsRepository()
         settings.setCloudSyncEnabled(enabled)
         settings.setCloudSyncPath(path)
+        settings.setCloudSyncDeletionTombstonesJson(null)
     }
 
     private fun diaryEntry(
@@ -198,6 +267,10 @@ class SyncManagerTest {
 
     private fun remoteEntryFileName(syncId: String, timestampMillis: Long): String {
         return "markday_entry_${syncId}_${timestampMillis}.txt"
+    }
+
+    private fun remoteTombstoneFileName(syncId: String, timestampMillis: Long): String {
+        return "markday_tombstone_${syncId}_${timestampMillis}.txt"
     }
 }
 
