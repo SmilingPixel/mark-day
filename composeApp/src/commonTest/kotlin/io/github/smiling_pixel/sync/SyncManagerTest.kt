@@ -61,6 +61,41 @@ class SyncManagerTest {
     }
 
     @Test
+    fun localNewer_prunesAllOlderRemoteVersionsAfterCreate() = runTest {
+        configureSyncSettings(enabled = true, path = "/")
+
+        val syncId = "133e4567-e89b-12d3-a456-426614174000"
+        val localEntry = diaryEntry(
+            syncId = syncId,
+            title = "Local",
+            content = "Local content",
+            createdAtMs = 1_000,
+            updatedAtMs = 3_000,
+        )
+
+        val dao = InMemoryDiaryDao(initial = listOf(localEntry))
+        val repo = DiaryRepository(dao)
+
+        val client = FakeCloudDriveClient(authorized = true)
+        client.seedFile(
+            name = remoteEntryFileName(syncId, 1_000),
+            content = encodeEntryForSync(localEntry.copy(updatedAt = Instant.fromEpochMilliseconds(1_000))),
+        )
+        client.seedFile(
+            name = remoteEntryFileName(syncId, 2_000),
+            content = encodeEntryForSync(localEntry.copy(updatedAt = Instant.fromEpochMilliseconds(2_000))),
+        )
+
+        val result = performCloudSync(client, repo, dao.getAll())
+
+        assertEquals(SyncResult(uploaded = 1, downloaded = 0, unchanged = 0), result)
+
+        val entryFiles = client.listFiles(null).filter { it.name.startsWith("markday_entry_${syncId}_") }
+        assertEquals(1, entryFiles.size)
+        assertEquals(remoteEntryFileName(syncId, 3_000), entryFiles.first().name)
+    }
+
+    @Test
     fun remoteNewer_downloadsAndUpdatesLocalEntry() = runTest {
         configureSyncSettings(enabled = true, path = "/")
 

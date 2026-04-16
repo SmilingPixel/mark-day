@@ -53,11 +53,13 @@ suspend fun performCloudSync(
         it.name.startsWith(SYNC_ENTRY_FILE_PREFIX) || it.name.startsWith(SYNC_TOMBSTONE_FILE_PREFIX)
     }
     val remoteFileMap = mutableMapOf<String, Pair<io.github.smiling_pixel.client.DriveFile, Long>>()
+    val remoteFileVersions = mutableMapOf<String, MutableList<Pair<io.github.smiling_pixel.client.DriveFile, Long>>>()
     val remoteTombstoneMap = mutableMapOf<String, Pair<io.github.smiling_pixel.client.DriveFile, Long>>()
     for (f in remoteFiles) {
         val parsedEntry = parseRemoteEntryFileName(f.name)
         if (parsedEntry != null) {
             val (syncId, timestamp) = parsedEntry
+            remoteFileVersions.getOrPut(syncId) { mutableListOf() }.add(Pair(f, timestamp))
             val existing = remoteFileMap[syncId]
             if (existing == null || existing.second < timestamp) {
                 remoteFileMap[syncId] = Pair(f, timestamp)
@@ -97,11 +99,14 @@ suspend fun performCloudSync(
             localTombstones.remove(syncId)
         }
 
-        val remoteEntry = remoteFileMap[syncId]
-        if (remoteEntry != null && remoteEntry.second <= remoteDeletedAt) {
-            runCatching { client.deleteFile(remoteEntry.first.id) }
-            remoteFileMap.remove(syncId)
+        val remoteEntries = remoteFileVersions[syncId].orEmpty()
+        for ((driveFile, remoteUpdatedAt) in remoteEntries) {
+            if (remoteUpdatedAt <= remoteDeletedAt) {
+                runCatching { client.deleteFile(driveFile.id) }
+            }
         }
+        remoteFileVersions.remove(syncId)
+        remoteFileMap.remove(syncId)
     }
 
     val emptyEntryLocal = DiaryEntry(id = 0, syncId = generateSyncId(), title = "", content = "")
@@ -115,8 +120,13 @@ suspend fun performCloudSync(
             if (localTime > remoteTime) {
                 val name = buildRemoteEntryFileName(local.syncId, localTime)
                 client.createFile(name, encodeEntryForSync(local), SYNC_ENTRY_MIME_TYPE, parentId)
-                // Delete old file only after successful upload to avoid losing the only remote copy.
-                runCatching { client.deleteFile(driveFile.id) }
+                // Delete old files only after successful upload to avoid losing the only remote copy.
+                val oldVersions = remoteFileVersions[local.syncId].orEmpty()
+                for ((oldDriveFile, oldRemoteTime) in oldVersions) {
+                    if (oldRemoteTime <= remoteTime) {
+                        runCatching { client.deleteFile(oldDriveFile.id) }
+                    }
+                }
                 uploaded++
             } else if (remoteTime > localTime) {
                 val remoteContent = client.downloadFile(driveFile.id)
@@ -137,16 +147,20 @@ suspend fun performCloudSync(
     }
 
     for ((syncId, deletedAtEpochMillis) in localTombstones.toMap()) {
-        val remoteEntry = remoteFileMap[syncId]
-        if (remoteEntry != null) {
-            if (remoteEntry.second <= deletedAtEpochMillis) {
-                runCatching { client.deleteFile(remoteEntry.first.id) }
-                remoteFileMap.remove(syncId)
-            } else {
-                localTombstones.remove(syncId)
-                continue
+        val remoteEntries = remoteFileVersions[syncId].orEmpty()
+        val newestRemoteEntryTimestamp = remoteEntries.maxOfOrNull { it.second }
+        if (newestRemoteEntryTimestamp != null && newestRemoteEntryTimestamp > deletedAtEpochMillis) {
+            localTombstones.remove(syncId)
+            continue
+        }
+
+        for ((driveFile, remoteTimestamp) in remoteEntries) {
+            if (remoteTimestamp <= deletedAtEpochMillis) {
+                runCatching { client.deleteFile(driveFile.id) }
             }
         }
+        remoteFileVersions.remove(syncId)
+        remoteFileMap.remove(syncId)
 
         val remoteTombstone = remoteTombstoneMap[syncId]
         if (remoteTombstone == null || remoteTombstone.second < deletedAtEpochMillis) {
