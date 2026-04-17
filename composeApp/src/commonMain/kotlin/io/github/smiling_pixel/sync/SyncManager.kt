@@ -34,9 +34,9 @@ data class SyncResult(
 suspend fun performCloudSync(
     client: CloudDriveClient,
     repo: DiaryRepository,
-    localEntries: List<DiaryEntry>
+    localEntries: List<DiaryEntry>,
+    settings: SettingsRepository = getSettingsRepository()
 ): SyncResult {
-    val settings = getSettingsRepository()
     val isEnabled = settings.isCloudSyncEnabled.first()
     if (!isEnabled) {
         throw Exception("Cloud Sync is disabled. Please enable it in Settings.")
@@ -199,10 +199,13 @@ suspend fun performCloudSync(
 }
 
 @OptIn(ExperimentalTime::class)
-suspend fun recordLocalDeletionTombstone(syncId: String, deletedAtEpochMillis: Long = Clock.System.now().toEpochMilliseconds()) {
+suspend fun recordLocalDeletionTombstone(
+    syncId: String,
+    deletedAtEpochMillis: Long = Clock.System.now().toEpochMilliseconds(),
+    settings: SettingsRepository = getSettingsRepository()
+) {
     if (!looksLikeUuid(syncId)) return
 
-    val settings = getSettingsRepository()
     val tombstones = loadLocalDeletionTombstones(settings).toMutableMap()
     val existing = tombstones[syncId]
     if (existing == null || existing < deletedAtEpochMillis) {

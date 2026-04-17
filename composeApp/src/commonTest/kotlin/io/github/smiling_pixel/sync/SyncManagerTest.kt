@@ -6,13 +6,16 @@ import io.github.smiling_pixel.client.UserInfo
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import io.github.smiling_pixel.model.DiaryEntry
-import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.preference.SettingsRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalTime::class)
@@ -20,7 +23,8 @@ class SyncManagerTest {
 
     @Test
     fun localNewer_uploadsAndDeletesOldFileAfterCreate() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val syncId = "123e4567-e89b-12d3-a456-426614174000"
         val localEntry = diaryEntry(
@@ -45,7 +49,7 @@ class SyncManagerTest {
         val oldRemoteName = remoteEntryFileName(syncId, 1_000)
         client.seedFile(name = oldRemoteName, content = encodeEntryForSync(oldRemote))
 
-        val result = performCloudSync(client, repo, dao.getAll())
+        val result = performCloudSync(client, repo, dao.getAll(), settings)
 
         assertEquals(SyncResult(uploaded = 1, downloaded = 0, unchanged = 0), result)
 
@@ -62,7 +66,8 @@ class SyncManagerTest {
 
     @Test
     fun localNewer_prunesAllOlderRemoteVersionsAfterCreate() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val syncId = "133e4567-e89b-12d3-a456-426614174000"
         val localEntry = diaryEntry(
@@ -86,7 +91,7 @@ class SyncManagerTest {
             content = encodeEntryForSync(localEntry.copy(updatedAt = Instant.fromEpochMilliseconds(2_000))),
         )
 
-        val result = performCloudSync(client, repo, dao.getAll())
+        val result = performCloudSync(client, repo, dao.getAll(), settings)
 
         assertEquals(SyncResult(uploaded = 1, downloaded = 0, unchanged = 0), result)
 
@@ -97,7 +102,8 @@ class SyncManagerTest {
 
     @Test
     fun remoteNewer_downloadsAndUpdatesLocalEntry() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val syncId = "223e4567-e89b-12d3-a456-426614174000"
         val localEntry = diaryEntry(
@@ -123,7 +129,7 @@ class SyncManagerTest {
             content = encodeEntryForSync(remoteNew),
         )
 
-        val result = performCloudSync(client, repo, dao.getAll())
+        val result = performCloudSync(client, repo, dao.getAll(), settings)
 
         assertEquals(SyncResult(uploaded = 0, downloaded = 1, unchanged = 0), result)
         val saved = dao.getAll().first()
@@ -133,7 +139,8 @@ class SyncManagerTest {
 
     @Test
     fun remoteOnlyFile_downloadsAndInsertsLocally() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val syncId = "323e4567-e89b-12d3-a456-426614174000"
         val remoteEntry = diaryEntry(
@@ -152,7 +159,7 @@ class SyncManagerTest {
             content = encodeEntryForSync(remoteEntry),
         )
 
-        val result = performCloudSync(client, repo, emptyList())
+        val result = performCloudSync(client, repo, emptyList(), settings)
 
         assertEquals(SyncResult(uploaded = 0, downloaded = 1, unchanged = 0), result)
         val all = dao.getAll()
@@ -163,7 +170,8 @@ class SyncManagerTest {
 
     @Test
     fun localDelete_uploadsTombstoneAndDeletesRemoteEntry() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val syncId = "333e4567-e89b-12d3-a456-426614174000"
         val localEntry = diaryEntry(
@@ -177,6 +185,7 @@ class SyncManagerTest {
         val dao = InMemoryDiaryDao(initial = listOf(localEntry))
         val repo = DiaryRepository(dao)
         repo.delete(localEntry)
+        recordLocalDeletionTombstone(syncId = syncId, deletedAtEpochMillis = 2_000, settings = settings)
 
         val client = FakeCloudDriveClient(authorized = true)
         client.seedFile(
@@ -184,7 +193,7 @@ class SyncManagerTest {
             content = encodeEntryForSync(localEntry),
         )
 
-        val result = performCloudSync(client, repo, dao.getAll())
+        val result = performCloudSync(client, repo, dao.getAll(), settings)
 
         assertEquals(SyncResult(uploaded = 1, downloaded = 0, unchanged = 0), result)
         val entryFiles = client.listFiles(null).filter { it.name.startsWith("markday_entry_") }
@@ -197,7 +206,8 @@ class SyncManagerTest {
 
     @Test
     fun remoteTombstone_deletesLocalAndDoesNotRestore() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val syncId = "343e4567-e89b-12d3-a456-426614174000"
         val localEntry = diaryEntry(
@@ -220,7 +230,7 @@ class SyncManagerTest {
             content = "{}".encodeToByteArray(),
         )
 
-        val result = performCloudSync(client, repo, dao.getAll())
+        val result = performCloudSync(client, repo, dao.getAll(), settings)
 
         assertEquals(SyncResult(uploaded = 0, downloaded = 1, unchanged = 0), result)
         assertTrue(dao.getAll().isEmpty())
@@ -231,7 +241,8 @@ class SyncManagerTest {
 
     @Test
     fun localNewer_whenCreateFails_keepsOldRemoteFile() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val syncId = "423e4567-e89b-12d3-a456-426614174000"
         val localEntry = diaryEntry(
@@ -254,7 +265,7 @@ class SyncManagerTest {
         client.failNextCreate = true
 
         assertFailsWith<IllegalStateException> {
-            performCloudSync(client, repo, dao.getAll())
+            performCloudSync(client, repo, dao.getAll(), settings)
         }
 
         val remainingNames = client.listFiles(null).map { it.name }
@@ -263,24 +274,28 @@ class SyncManagerTest {
 
     @Test
     fun unauthorized_throwsBeforeAnySyncWork() = runTest {
-        configureSyncSettings(enabled = true, path = "/")
+        val settings = createTestSettingsRepository()
+        configureSyncSettings(settings, enabled = true, path = "/")
 
         val dao = InMemoryDiaryDao()
         val repo = DiaryRepository(dao)
         val client = FakeCloudDriveClient(authorized = false)
 
         assertFailsWith<Exception> {
-            performCloudSync(client, repo, emptyList())
+            performCloudSync(client, repo, emptyList(), settings)
         }
 
         assertTrue(client.calls.isEmpty())
     }
 
-    private suspend fun configureSyncSettings(enabled: Boolean, path: String) {
-        val settings = getSettingsRepository()
+    private suspend fun configureSyncSettings(settings: SettingsRepository, enabled: Boolean, path: String) {
         settings.setCloudSyncEnabled(enabled)
         settings.setCloudSyncPath(path)
         settings.setCloudSyncDeletionTombstonesJson(null)
+    }
+
+    private fun createTestSettingsRepository(): SettingsRepository {
+        return InMemorySettingsRepository()
     }
 
     private fun diaryEntry(
@@ -306,6 +321,44 @@ class SyncManagerTest {
 
     private fun remoteTombstoneFileName(syncId: String, timestampMillis: Long): String {
         return "markday_tombstone_${syncId}_${timestampMillis}.txt"
+    }
+}
+
+private class InMemorySettingsRepository : SettingsRepository {
+    private val apiKeyState = MutableStateFlow<String?>(null)
+    private val cloudSyncEnabledState = MutableStateFlow(false)
+    private val autoSyncEnabledState = MutableStateFlow(false)
+    private val cloudSyncPathState = MutableStateFlow("/MarkDay")
+    private val cloudSyncDeletionTombstonesJsonState = MutableStateFlow<String?>(null)
+
+    override val googleWeatherApiKey: Flow<String?> = apiKeyState.asStateFlow()
+
+    override suspend fun setGoogleWeatherApiKey(key: String?) {
+        apiKeyState.value = key
+    }
+
+    override val isCloudSyncEnabled: Flow<Boolean> = cloudSyncEnabledState.asStateFlow()
+
+    override suspend fun setCloudSyncEnabled(enabled: Boolean) {
+        cloudSyncEnabledState.value = enabled
+    }
+
+    override val isAutoSyncEnabled: Flow<Boolean> = autoSyncEnabledState.asStateFlow()
+
+    override suspend fun setAutoSyncEnabled(enabled: Boolean) {
+        autoSyncEnabledState.value = enabled
+    }
+
+    override val cloudSyncPath: Flow<String> = cloudSyncPathState.asStateFlow()
+
+    override suspend fun setCloudSyncPath(path: String) {
+        cloudSyncPathState.value = path
+    }
+
+    override val cloudSyncDeletionTombstonesJson: Flow<String?> = cloudSyncDeletionTombstonesJsonState.asStateFlow()
+
+    override suspend fun setCloudSyncDeletionTombstonesJson(value: String?) {
+        cloudSyncDeletionTombstonesJsonState.value = value
     }
 }
 
