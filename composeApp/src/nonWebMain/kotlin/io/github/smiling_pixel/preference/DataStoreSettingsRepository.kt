@@ -3,6 +3,7 @@ package io.github.smiling_pixel.preference
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,10 @@ private val dataStore: DataStore<Preferences> by lazy {
 
 class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>) : SettingsRepository {
     private val WEATHER_API_KEY = stringPreferencesKey("weather_api_key")
+    private val IS_CLOUD_SYNC_ENABLED = booleanPreferencesKey("is_cloud_sync_enabled")
+    private val IS_AUTO_SYNC_ENABLED = booleanPreferencesKey("is_auto_sync_enabled")
+    private val CLOUD_SYNC_PATH = stringPreferencesKey("cloud_sync_path")
+    private val CLOUD_SYNC_DELETION_TOMBSTONES_JSON = stringPreferencesKey("cloud_sync_deletion_tombstones_json")
 
     override val googleWeatherApiKey: Flow<String?> = dataStore.data
         .map { preferences ->
@@ -37,6 +42,54 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
                 preferences[WEATHER_API_KEY] = key
             } else {
                 preferences.remove(WEATHER_API_KEY)
+            }
+        }
+    }
+
+    override val isCloudSyncEnabled: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[IS_CLOUD_SYNC_ENABLED] ?: false
+        }
+
+    override suspend fun setCloudSyncEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_CLOUD_SYNC_ENABLED] = enabled
+        }
+    }
+
+    override val isAutoSyncEnabled: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[IS_AUTO_SYNC_ENABLED] ?: false
+        }
+
+    override suspend fun setAutoSyncEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_AUTO_SYNC_ENABLED] = enabled
+        }
+    }
+
+    override val cloudSyncPath: Flow<String> = dataStore.data
+        .map { preferences ->
+            preferences[CLOUD_SYNC_PATH] ?: "/MarkDay"
+        }
+
+    override suspend fun setCloudSyncPath(path: String) {
+        dataStore.edit { preferences ->
+            preferences[CLOUD_SYNC_PATH] = path
+        }
+    }
+
+    override val cloudSyncDeletionTombstonesJson: Flow<String?> = dataStore.data
+        .map { preferences ->
+            preferences[CLOUD_SYNC_DELETION_TOMBSTONES_JSON]
+        }
+
+    override suspend fun setCloudSyncDeletionTombstonesJson(value: String?) {
+        dataStore.edit { preferences ->
+            if (value.isNullOrBlank()) {
+                preferences.remove(CLOUD_SYNC_DELETION_TOMBSTONES_JSON)
+            } else {
+                preferences[CLOUD_SYNC_DELETION_TOMBSTONES_JSON] = value
             }
         }
     }

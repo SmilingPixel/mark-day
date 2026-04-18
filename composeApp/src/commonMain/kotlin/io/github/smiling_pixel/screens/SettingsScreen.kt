@@ -41,6 +41,10 @@ fun SettingsScreen() {
     val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
     val uriHandler = LocalUriHandler.current
 
+    val isCloudSyncEnabled by settingsRepository.isCloudSyncEnabled.collectAsState(initial = false)
+    val isAutoSyncEnabled by settingsRepository.isAutoSyncEnabled.collectAsState(initial = false)
+    val cloudSyncPath by settingsRepository.cloudSyncPath.collectAsState(initial = "/MarkDay")
+
     val cloudDriveClient = remember { getCloudDriveClient() }
     var userInfo by remember { mutableStateOf<UserInfo?>(null) }
     var isAuthorized by remember { mutableStateOf(false) }
@@ -125,8 +129,50 @@ fun SettingsScreen() {
         }
         
         if (isAuthorized) {
+            Text(
+                text = "Connected to Google Drive",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Text("Signed in as: ${userInfo?.name ?: "Loading..."}")
             Text("Email: ${userInfo?.email ?: ""}")
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = cloudSyncPath,
+                onValueChange = { 
+                    scope.launch { 
+                        settingsRepository.setCloudSyncPath(it) 
+                    }
+                },
+                label = { Text("Cloud Sync Save Path") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            ) // TODO: better user experience for selecting folder in Google Drive @SmilingPixel
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { 
+                    scope.launch {
+                        settingsRepository.setCloudSyncEnabled(!isCloudSyncEnabled)
+                    }
+                }
+            ) {
+                Text(if (isCloudSyncEnabled) "Disable Cloud Sync" else "Enable Cloud Sync")
+            }
+            if (isCloudSyncEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { 
+                        scope.launch {
+                            settingsRepository.setAutoSyncEnabled(!isAutoSyncEnabled)
+                        }
+                    }
+                ) {
+                    Text(if (isAutoSyncEnabled) "Disable Auto Sync" else "Enable Auto Sync")
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
@@ -137,6 +183,8 @@ fun SettingsScreen() {
                             cloudDriveClient.signOut()
                             isAuthorized = false
                             userInfo = null
+                            settingsRepository.setCloudSyncEnabled(false)
+                            settingsRepository.setAutoSyncEnabled(false)
                         } catch (e: CancellationException) {
                             // Don't catch structured concurrency cancellation exceptions
                             throw e
@@ -192,7 +240,7 @@ fun SettingsScreen() {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Authorize Google Drive")
+                Text("Connect to Google Drive")
             }
         }
 

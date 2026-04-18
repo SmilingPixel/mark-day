@@ -88,7 +88,7 @@ fun App(
         var previous by remember { mutableStateOf<AppRoute>(EntriesRoute) }
 
         var isSelectionMode by remember { mutableStateOf(false) }
-        var selectedIds by remember { mutableStateOf(emptySet<Int>()) }
+        var selectedIds by remember { mutableStateOf(emptySet<String>()) }
 
         LaunchedEffect(selected) {
             isSelectionMode = false
@@ -115,7 +115,7 @@ fun App(
                             IconButton(onClick = {
                                 scope.launch {
                                     val currentEntries = repo.entries.value
-                                    val entriesToDelete = currentEntries.filter { it.id in selectedIds }
+                                    val entriesToDelete = currentEntries.filter { it.syncId in selectedIds }
                                     entriesToDelete.forEach { repo.delete(it) }
                                     isSelectionMode = false
                                     selectedIds = emptySet()

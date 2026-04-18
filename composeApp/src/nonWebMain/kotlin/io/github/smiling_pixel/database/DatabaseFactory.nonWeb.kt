@@ -9,7 +9,7 @@ fun getRoomDatabase(
     builder: RoomDatabase.Builder<AppDatabase>
 ): AppDatabase {
     return builder
-        .fallbackToDestructiveMigration(true)
+        .fallbackToDestructiveMigration(true) // TODO: maybe a risk here if using destructive migration in production, but for now it simplifies development @SmilingPixel
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .build()

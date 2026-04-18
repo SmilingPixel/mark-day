@@ -4,9 +4,11 @@ import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.LocalDate
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -19,13 +21,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +52,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.Alignment
+import io.github.smiling_pixel.client.getCloudDriveClient
+import androidx.compose.runtime.DisposableEffect
+import io.github.smiling_pixel.sync.startAutoSync
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalTime::class)
@@ -53,16 +63,46 @@ fun EntriesScreen(
     repo: DiaryRepository,
     weatherClient: WeatherClient,
     isSelectionMode: Boolean,
-    selectedIds: Set<Int>,
+    selectedIds: Set<String>,
     onSelectionModeChange: (Boolean) -> Unit,
-    onSelectionChange: (Set<Int>) -> Unit
+    onSelectionChange: (Set<String>) -> Unit
 ) {
     val entriesState by repo.entries.collectAsState()
     val scope = rememberCoroutineScope()
 
+    DisposableEffect(repo) {
+        val autoSyncJob = startAutoSync(repo)
+        onDispose {
+            autoSyncJob?.cancel()
+        }
+    }
+
     // currently-selected entry; null means list view (unless creating)
     var selectedEntry by remember { mutableStateOf<DiaryEntry?>(null) }
     var isCreating by remember { mutableStateOf(false) }
+
+    // sync state
+    var isSyncing by remember { mutableStateOf(false) }
+    var syncSummary by remember { mutableStateOf<String?>(null) }
+    var syncError by remember { mutableStateOf<String?>(null) }
+
+    if (syncSummary != null) {
+        AlertDialog(
+            onDismissRequest = { syncSummary = null },
+            title = { Text("Sync Summary") },
+            text = { Text(syncSummary!!) },
+            confirmButton = { Button(onClick = { syncSummary = null }) { Text("OK") } }
+        )
+    }
+
+    if (syncError != null) {
+        AlertDialog(
+            onDismissRequest = { syncError = null },
+            title = { Text("Sync Error") },
+            text = { Text(syncError!!) },
+            confirmButton = { Button(onClick = { syncError = null }) { Text("OK") } }
+        )
+    }
 
     if (isCreating || selectedEntry != null) {
         // Details view (New or Edit)
@@ -91,11 +131,46 @@ fun EntriesScreen(
         Scaffold(
             floatingActionButton = {
                 if (!isSelectionMode) {
-                    FloatingActionButton(
-                        onClick = { isCreating = true },
-                        shape = RoundedCornerShape(16.dp)
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
+                        FloatingActionButton(
+                            onClick = {
+                                if (isSyncing) return@FloatingActionButton
+                                isSyncing = true
+                                scope.launch {
+                                    try {
+                                        val result = io.github.smiling_pixel.sync.performCloudSync(
+                                            client = getCloudDriveClient(),
+                                            repo = repo,
+                                            localEntries = entriesState
+                                        )
+                                        syncSummary = "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
+                                    } catch (e: CancellationException) {
+                                        // Preserve coroutine cancellation instead of showing it as a sync error.
+                                        throw e
+                                    } catch (e: Exception) {
+                                        syncError = e.message ?: "An unknown error occurred during sync"
+                                    } finally {
+                                        isSyncing = false
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            if (isSyncing) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = "Sync with Google Drive")
+                            }
+                        }
+                        FloatingActionButton(
+                            onClick = { isCreating = true },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
+                        }
                     }
                 }
             }
@@ -108,7 +183,7 @@ fun EntriesScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(entriesState, key = { it.id }) { entry ->
-                    val isSelected = entry.id in selectedIds
+                    val isSelected = entry.syncId in selectedIds
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -116,7 +191,11 @@ fun EntriesScreen(
                             .combinedClickable(
                                 onClick = {
                                     if (isSelectionMode) {
-                                        val newSelection = if (isSelected) selectedIds - entry.id else selectedIds + entry.id
+                                        val newSelection = if (isSelected) {
+                                            selectedIds - entry.syncId
+                                        } else {
+                                            selectedIds + entry.syncId
+                                        }
                                         onSelectionChange(newSelection)
                                         if (newSelection.isEmpty()) {
                                             onSelectionModeChange(false)
@@ -128,7 +207,7 @@ fun EntriesScreen(
                                 onLongClick = {
                                     if (!isSelectionMode) {
                                         onSelectionModeChange(true)
-                                        onSelectionChange(setOf(entry.id))
+                                        onSelectionChange(setOf(entry.syncId))
                                     }
                                 }
                             ),
@@ -195,5 +274,4 @@ fun EntriesScreen(
         }
     }
 }
-
 

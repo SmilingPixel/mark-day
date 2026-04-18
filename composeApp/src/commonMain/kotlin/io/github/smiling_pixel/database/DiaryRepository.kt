@@ -1,6 +1,7 @@
 package io.github.smiling_pixel.database
 
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.sync.recordLocalDeletionTombstone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +45,10 @@ class DiaryRepository(
         dao.update(entry)
     }
 
-    suspend fun delete(entry: DiaryEntry) {
+    suspend fun delete(entry: DiaryEntry, recordSyncTombstone: Boolean = true) {
+        if (recordSyncTombstone) {
+            recordLocalDeletionTombstone(entry.syncId)
+        }
         dao.delete(entry)
     }
 }
