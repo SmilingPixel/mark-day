@@ -15,8 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.collectAsState
@@ -38,6 +41,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen() {
     val scope = rememberCoroutineScope()
     val settingsRepository = getSettingsRepository()
+    val themeMode by settingsRepository.themeMode.collectAsState(initial = io.github.smiling_pixel.theme.ThemeMode.SYSTEM)
     val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
     val uriHandler = LocalUriHandler.current
 
@@ -92,6 +96,44 @@ fun SettingsScreen() {
             text = "Settings",
             style = MaterialTheme.typography.headlineMedium
         )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        /**
+         * A section to allow the user to select their preferred Theme Mode.
+         * The user can select from SYSTEM, LIGHT, or DARK modes using a group of radio buttons.
+         */
+        Text(
+            text = "Appearance",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            io.github.smiling_pixel.theme.ThemeMode.entries.forEach { mode ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        scope.launch {
+                            settingsRepository.setThemeMode(mode)
+                        }
+                    }.padding(end = 16.dp)
+                ) {
+                    RadioButton(
+                        selected = themeMode == mode,
+                        onClick = {
+                            scope.launch {
+                                settingsRepository.setThemeMode(mode)
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = mode.name.lowercase().replaceFirstChar { it.uppercase() })
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
