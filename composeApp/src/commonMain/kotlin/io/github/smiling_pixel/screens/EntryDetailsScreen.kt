@@ -47,7 +47,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.time.ExperimentalTime
@@ -55,6 +54,16 @@ import io.github.smiling_pixel.util.Logger
 import io.github.smiling_pixel.util.e
 import io.github.smiling_pixel.util.w
 
+/**
+ * Screen displaying the details of a diary entry.
+ * It allows the user to view the entry's content, title, date, and weather,
+ * or edit these details if they switch to edit mode.
+ * 
+ * @param entry The [DiaryEntry] to display or edit. If null, creates a new entry.
+ * @param weatherClient The [WeatherClient] to fetch weather information.
+ * @param onSave Callback invoked when the user saves the entry.
+ * @param onCancel Callback invoked when the user cancels editing or goes back.
+ */
 @OptIn(ExperimentalTime::class, ExperimentalMaterial3Api::class)
 @Composable
 fun EntryDetailsScreen(
@@ -201,7 +210,7 @@ fun EntryDetailsScreen(
             }
             
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(thickness = 1.dp, color = Color.Gray)
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -296,7 +305,7 @@ fun EntryDetailsScreen(
             Text(
                 text = "Created: ${createdLocal.date} $createdTimeStr",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.outlineVariant
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -305,7 +314,7 @@ fun EntryDetailsScreen(
             Text(
                 text = "Updated: ${updatedLocal.date} $updatedTimeStr",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.outlineVariant
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -318,7 +327,7 @@ fun EntryDetailsScreen(
                 Spacer(modifier = Modifier.height(6.dp))
             }
 
-            HorizontalDivider(thickness = 1.dp, color = Color.Gray)
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
             Spacer(modifier = Modifier.height(12.dp))
 
