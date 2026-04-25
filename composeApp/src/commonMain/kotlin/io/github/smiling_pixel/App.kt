@@ -1,5 +1,6 @@
 package io.github.smiling_pixel
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +40,9 @@ import io.github.smiling_pixel.filesystem.InMemoryFileManager
 import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.client.WeatherClient
+import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.screens.EntriesScreen
 import io.github.smiling_pixel.screens.EntryDetailsScreen
 import io.github.smiling_pixel.screens.InsightsScreen
@@ -75,7 +79,10 @@ fun App(
         getAsyncImageLoader(context)
     }
 
-    MaterialTheme {
+    val themeMode by getSettingsRepository().themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val useDarkTheme = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
+
+    MarkDayTheme(useDarkTheme = useDarkTheme) {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
         val fileRepo = providedFileRepo ?: remember { 
             FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao()) 
