@@ -16,9 +16,17 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -90,57 +98,67 @@ fun SettingsScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Text(
             text = "Settings",
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         /**
          * A section to allow the user to select their preferred Theme Mode.
-         * The user can select from SYSTEM, LIGHT, or DARK modes using a group of radio buttons.
+         * The user can select from SYSTEM, LIGHT, or DARK modes using a group of rounded rectangles.
          */
         Text(
             text = "Appearance",
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             io.github.smiling_pixel.theme.ThemeMode.entries.forEach { mode ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable {
-                        scope.launch {
-                            settingsRepository.setThemeMode(mode)
-                        }
-                    }.padding(end = 16.dp)
-                ) {
-                    RadioButton(
-                        selected = themeMode == mode,
-                        onClick = {
+                val isSelected = themeMode == mode
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
                             scope.launch {
                                 settingsRepository.setThemeMode(mode)
                             }
                         }
+                        .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                        .then(
+                            if (isSelected) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)) 
+                            else Modifier
+                        )
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = mode.name.lowercase().replaceFirstChar { it.uppercase() },
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelLarge
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = mode.name.lowercase().replaceFirstChar { it.uppercase() })
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Text(
             text = "Third-party Services",
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = apiKey ?: "",
             onValueChange = { newKey ->
@@ -153,13 +171,14 @@ fun SettingsScreen() {
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Text(
             text = "Cloud Drive Sync",
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         errorMessage?.let { msg ->
             Text(
@@ -286,20 +305,22 @@ fun SettingsScreen() {
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
         Text(
             text = "About",
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "MarkDay Diary App v1.0.0",
             style = MaterialTheme.typography.bodyLarge
         )
         Text(
             text = "A cross-platform diary application built with Kotlin Multiplatform and Compose.",
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
