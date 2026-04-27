@@ -29,6 +29,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,6 +51,7 @@ fun SettingsScreen() {
     val scope = rememberCoroutineScope()
     val settingsRepository = getSettingsRepository()
     val themeMode by settingsRepository.themeMode.collectAsState(initial = io.github.smiling_pixel.theme.ThemeMode.SYSTEM)
+    val isPureBlackEnabled by settingsRepository.isPureBlackEnabled.collectAsState(initial = false)
     val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
     val uriHandler = LocalUriHandler.current
 
@@ -149,6 +151,35 @@ fun SettingsScreen() {
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                Text(
+                    text = "Pure Black Mode",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Use pure black backgrounds in dark mode instead of dark gray, optimizing for OLED screens.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = isPureBlackEnabled,
+                onCheckedChange = { isChecked ->
+                    scope.launch {
+                        settingsRepository.setPureBlackEnabled(isChecked)
+                    }
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))

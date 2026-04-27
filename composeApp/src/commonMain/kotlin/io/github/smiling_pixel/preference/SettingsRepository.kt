@@ -16,6 +16,9 @@ interface SettingsRepository {
      */
     suspend fun setThemeMode(mode: ThemeMode)
 
+    val isPureBlackEnabled: Flow<Boolean>
+    suspend fun setPureBlackEnabled(enabled: Boolean)
+
     val googleWeatherApiKey: Flow<String?>
     suspend fun setGoogleWeatherApiKey(key: String?)
 

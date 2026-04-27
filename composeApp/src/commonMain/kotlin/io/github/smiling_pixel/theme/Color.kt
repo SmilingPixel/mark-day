@@ -96,3 +96,8 @@ val onBackgroundDark = Color(0xFFE0E4DB)
 val surfaceDark = Color(0xFF10140F)
 /** Color used for text/icons on top of surfaces in the dark theme. */
 val onSurfaceDark = Color(0xFFE0E4DB)
+
+/** Pure black background for OLED screens in the dark theme. */
+val backgroundPureBlack = Color(0xFF000000)
+/** Pure black surface for OLED screens in the dark theme. */
+val surfacePureBlack = Color(0xFF000000)

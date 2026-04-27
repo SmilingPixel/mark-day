@@ -59,6 +59,32 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 /**
+ * Material 3 dark color scheme for the application with pure black backgrounds for OLED screens.
+ */
+private val PureBlackColorScheme = darkColorScheme(
+    primary = primaryDark,
+    onPrimary = onPrimaryDark,
+    primaryContainer = primaryContainerDark,
+    onPrimaryContainer = onPrimaryContainerDark,
+    secondary = secondaryDark,
+    onSecondary = onSecondaryDark,
+    secondaryContainer = secondaryContainerDark,
+    onSecondaryContainer = onSecondaryContainerDark,
+    tertiary = tertiaryDark,
+    onTertiary = onTertiaryDark,
+    tertiaryContainer = tertiaryContainerDark,
+    onTertiaryContainer = onTertiaryContainerDark,
+    error = errorDark,
+    onError = onErrorDark,
+    errorContainer = errorContainerDark,
+    onErrorContainer = onErrorContainerDark,
+    background = backgroundPureBlack,
+    onBackground = onBackgroundDark,
+    surface = surfacePureBlack,
+    onSurface = onSurfaceDark
+)
+
+/**
  * The main theme for the MarkDay diary app.
  *
  * This theme applies a green-based Material 3 color system to the application, adjusting
@@ -71,10 +97,11 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun MarkDayTheme(
     useDarkTheme: Boolean = isSystemInDarkTheme(),
+    isPureBlack: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (useDarkTheme) {
-        DarkColorScheme
+        if (isPureBlack) PureBlackColorScheme else DarkColorScheme
     } else {
         LightColorScheme
     }
