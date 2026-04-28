@@ -80,9 +80,13 @@ fun App(
     }
 
     val themeMode by getSettingsRepository().themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val isPureBlackEnabled by getSettingsRepository().isPureBlackEnabled.collectAsState(initial = false)
     val useDarkTheme = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
-    MarkDayTheme(useDarkTheme = useDarkTheme) {
+    MarkDayTheme(
+        useDarkTheme = useDarkTheme,
+        isPureBlack = isPureBlackEnabled
+    ) {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
         val fileRepo = providedFileRepo ?: remember { 
             FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao()) 

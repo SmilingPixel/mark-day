@@ -22,12 +22,20 @@ class WasmJsSettingsRepository : SettingsRepository {
             }
         } ?: ThemeMode.SYSTEM
     )
+    private val _isPureBlackEnabled = MutableStateFlow(localStorage.getItem("is_pure_black_enabled") == "true")
 
     override val themeMode: Flow<ThemeMode> = _themeMode.asStateFlow()
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         localStorage.setItem("theme_mode", mode.name)
         _themeMode.value = mode
+    }
+
+    override val isPureBlackEnabled: Flow<Boolean> = _isPureBlackEnabled.asStateFlow()
+
+    override suspend fun setPureBlackEnabled(enabled: Boolean) {
+        localStorage.setItem("is_pure_black_enabled", enabled.toString())
+        _isPureBlackEnabled.value = enabled
     }
 
     override val googleWeatherApiKey: Flow<String?> = _apiKey.asStateFlow()
