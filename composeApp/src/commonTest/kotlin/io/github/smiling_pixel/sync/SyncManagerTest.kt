@@ -325,11 +325,25 @@ class SyncManagerTest {
 }
 
 private class InMemorySettingsRepository : SettingsRepository {
+    private val themeModeState = MutableStateFlow(io.github.smiling_pixel.theme.ThemeMode.SYSTEM)
+    private val pureBlackEnabledState = MutableStateFlow(false)
     private val apiKeyState = MutableStateFlow<String?>(null)
     private val cloudSyncEnabledState = MutableStateFlow(false)
     private val autoSyncEnabledState = MutableStateFlow(false)
     private val cloudSyncPathState = MutableStateFlow("/MarkDay")
     private val cloudSyncDeletionTombstonesJsonState = MutableStateFlow<String?>(null)
+
+    override val themeMode: Flow<io.github.smiling_pixel.theme.ThemeMode> = themeModeState.asStateFlow()
+
+    override suspend fun setThemeMode(mode: io.github.smiling_pixel.theme.ThemeMode) {
+        themeModeState.value = mode
+    }
+
+    override val isPureBlackEnabled: Flow<Boolean> = pureBlackEnabledState.asStateFlow()
+
+    override suspend fun setPureBlackEnabled(enabled: Boolean) {
+        pureBlackEnabledState.value = enabled
+    }
 
     override val googleWeatherApiKey: Flow<String?> = apiKeyState.asStateFlow()
 
