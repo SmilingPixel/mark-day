@@ -83,4 +83,6 @@ class WasmJsSettingsRepository : SettingsRepository {
     }
 }
 
-actual fun getSettingsRepository(): SettingsRepository = WasmJsSettingsRepository()
+private val repositoryInstance by lazy { WasmJsSettingsRepository() }
+
+actual fun getSettingsRepository(): SettingsRepository = repositoryInstance
