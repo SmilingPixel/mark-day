@@ -79,8 +79,9 @@ fun App(
         getAsyncImageLoader(context)
     }
 
-    val themeMode by getSettingsRepository().themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-    val isPureBlackEnabled by getSettingsRepository().isPureBlackEnabled.collectAsState(initial = false)
+    val settingsRepository = remember { getSettingsRepository() }
+    val themeMode by settingsRepository.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val isPureBlackEnabled by settingsRepository.isPureBlackEnabled.collectAsState(initial = false)
     val useDarkTheme = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
     MarkDayTheme(
@@ -91,7 +92,7 @@ fun App(
         val fileRepo = providedFileRepo ?: remember { 
             FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao()) 
         }
-        val weatherClient = remember { GoogleWeatherClient(getSettingsRepository()) }
+        val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
         val navController = rememberNavController()
         var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
