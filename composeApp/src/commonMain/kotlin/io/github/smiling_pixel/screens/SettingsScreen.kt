@@ -52,7 +52,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen() {
     val scope = rememberCoroutineScope()
-    val settingsRepository = getSettingsRepository()
+    // Remember the settings repository so recomposition does not recreate a new DataStore-backed
+    // repository instance and resubscribe all mapped flows unnecessarily.
+    val settingsRepository = remember { getSettingsRepository() }
     val themeMode by settingsRepository.themeMode.collectAsState(initial = io.github.smiling_pixel.theme.ThemeMode.SYSTEM)
     val isPureBlackEnabled by settingsRepository.isPureBlackEnabled.collectAsState(initial = false)
     val apiKey by settingsRepository.googleWeatherApiKey.collectAsState(initial = null)
