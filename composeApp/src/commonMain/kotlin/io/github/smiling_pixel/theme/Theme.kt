@@ -87,11 +87,12 @@ private val PureBlackColorScheme = darkColorScheme(
 /**
  * The main theme for the MarkDay diary app.
  *
- * This theme applies a green-based Material 3 color system to the application, adjusting
- * appropriately for light and dark system settings. It wraps the standard `MaterialTheme`
+ * This theme applies a green-based Material 3 color system to the application, providing
+ * support for light, dark, and pure black color schemes. It wraps the standard `MaterialTheme`
  * composable from the Jetpack Compose Material 3 library.
  *
  * @param useDarkTheme Whether to use the dark theme color scheme. Defaults to system preference.
+ * @param isPureBlack Whether to use pure black backgrounds when in dark mode. Defaults to false.
  * @param content The composable content that will be styled by this theme.
  */
 @Composable
