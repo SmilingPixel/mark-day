@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -39,7 +38,6 @@ import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
 import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.client.GoogleWeatherClient
-import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.theme.MarkDayTheme
