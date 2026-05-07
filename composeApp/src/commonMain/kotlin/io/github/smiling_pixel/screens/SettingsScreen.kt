@@ -115,7 +115,7 @@ fun SettingsScreen() {
         )
         Spacer(modifier = Modifier.height(32.dp))
 
-        /**
+        /*
          * A section to allow the user to select their preferred Theme Mode.
          * The user can select from SYSTEM, LIGHT, or DARK modes using a group of rounded rectangles.
          */
