@@ -75,8 +75,10 @@ fun App(
     providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
     providedFileRepo: FileRepository? = null
 ) {
-    setSingletonImageLoaderFactory { context ->
-        getAsyncImageLoader(context)
+    LaunchedEffect(Unit) {
+        setSingletonImageLoaderFactory { context ->
+            getAsyncImageLoader(context)
+        }
     }
 
     val settingsRepository = remember { getSettingsRepository() }
