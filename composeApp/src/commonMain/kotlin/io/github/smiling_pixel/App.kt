@@ -73,11 +73,13 @@ fun App(
     providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
     providedFileRepo: FileRepository? = null
 ) {
-    LaunchedEffect(Unit) {
-        setSingletonImageLoaderFactory { context ->
-            getAsyncImageLoader(context)
-        }
+    // Memoize the image loader factory to prevent it from being re-created on every recomposition.
+    // While setSingletonImageLoaderFactory is a @Composable, we use remember here to ensure the 
+    // factory lambda remains stable across theme changes and other UI updates.
+    val imageLoaderFactory = remember {
+        { context: coil3.PlatformContext -> getAsyncImageLoader(context) }
     }
+    setSingletonImageLoaderFactory(imageLoaderFactory)
 
     val settingsRepository = remember { getSettingsRepository() }
     val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
