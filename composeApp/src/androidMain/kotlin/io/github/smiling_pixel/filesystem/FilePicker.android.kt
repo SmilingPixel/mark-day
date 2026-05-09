@@ -13,28 +13,28 @@ import kotlinx.coroutines.withContext
 
 actual class PlatformFile(
     val uri: Uri,
-    private val contentResolver: ContentResolver
-) {
-    actual suspend fun readBytes(): ByteArray = withContext(Dispatchers.IO) {
-        contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
-    }
+    val contentResolver: ContentResolver
+)
 
-    actual fun name(): String {
-        var name = ""
-        val cursor = contentResolver.query(uri, null, null, null, null)
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index != -1) {
-                    name = it.getString(index)
-                }
+actual suspend fun PlatformFile.readBytes(): ByteArray = withContext(Dispatchers.IO) {
+    contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
+}
+
+actual fun PlatformFile.name(): String {
+    var name = ""
+    val cursor = contentResolver.query(uri, null, null, null, null)
+    cursor?.use {
+        if (it.moveToFirst()) {
+            val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index != -1) {
+                name = it.getString(index)
             }
         }
-        if (name.isEmpty()) {
-            name = uri.lastPathSegment ?: "unknown"
-        }
-        return name
     }
+    if (name.isEmpty()) {
+        name = uri.lastPathSegment ?: "unknown"
+    }
+    return name
 }
 
 @Composable
