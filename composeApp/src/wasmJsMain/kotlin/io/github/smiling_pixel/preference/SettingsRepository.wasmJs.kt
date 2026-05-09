@@ -1,5 +1,6 @@
 package io.github.smiling_pixel.preference
 
+import io.github.smiling_pixel.theme.ThemeMode
 import kotlinx.browser.localStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,30 @@ class WasmJsSettingsRepository : SettingsRepository {
     private val _cloudSyncPath = MutableStateFlow(localStorage.getItem("cloud_sync_path") ?: "/MarkDay")
     private val _cloudSyncDeletionTombstonesJson =
         MutableStateFlow(localStorage.getItem("cloud_sync_deletion_tombstones_json"))
+    private val _themeMode = MutableStateFlow(
+        localStorage.getItem("theme_mode")?.let {
+            try {
+                ThemeMode.valueOf(it)
+            } catch (e: IllegalArgumentException) {
+                ThemeMode.SYSTEM
+            }
+        } ?: ThemeMode.SYSTEM
+    )
+    private val _isPureBlackEnabled = MutableStateFlow(localStorage.getItem("is_pure_black_enabled") == "true")
+
+    override val themeMode: Flow<ThemeMode> = _themeMode.asStateFlow()
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        localStorage.setItem("theme_mode", mode.name)
+        _themeMode.value = mode
+    }
+
+    override val isPureBlackEnabled: Flow<Boolean> = _isPureBlackEnabled.asStateFlow()
+
+    override suspend fun setPureBlackEnabled(enabled: Boolean) {
+        localStorage.setItem("is_pure_black_enabled", enabled.toString())
+        _isPureBlackEnabled.value = enabled
+    }
 
     override val googleWeatherApiKey: Flow<String?> = _apiKey.asStateFlow()
 
@@ -58,4 +83,6 @@ class WasmJsSettingsRepository : SettingsRepository {
     }
 }
 
-actual fun getSettingsRepository(): SettingsRepository = WasmJsSettingsRepository()
+private val repositoryInstance by lazy { WasmJsSettingsRepository() }
+
+actual fun getSettingsRepository(): SettingsRepository = repositoryInstance

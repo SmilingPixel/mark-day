@@ -1,5 +1,6 @@
 package io.github.smiling_pixel
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -9,7 +10,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -18,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,8 +38,9 @@ import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
 import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.client.GoogleWeatherClient
-import io.github.smiling_pixel.client.WeatherClient
+import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.screens.EntriesScreen
 import io.github.smiling_pixel.screens.EntryDetailsScreen
 import io.github.smiling_pixel.screens.InsightsScreen
@@ -71,16 +73,33 @@ fun App(
     providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
     providedFileRepo: FileRepository? = null
 ) {
-    setSingletonImageLoaderFactory { context ->
-        getAsyncImageLoader(context)
+    // Memoize the image loader factory to prevent it from being re-created on every recomposition.
+    // While setSingletonImageLoaderFactory is a @Composable, we use remember here to ensure the 
+    // factory lambda remains stable across theme changes and other UI updates.
+    val imageLoaderFactory = remember {
+        { context: coil3.PlatformContext -> getAsyncImageLoader(context) }
+    }
+    setSingletonImageLoaderFactory(imageLoaderFactory)
+
+    val settingsRepository = remember { getSettingsRepository() }
+    val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
+    val isPureBlackEnabled by settingsRepository.isPureBlackEnabled.collectAsState(initial = null)
+
+    if (themeMode == null || isPureBlackEnabled == null) {
+        return
     }
 
-    MaterialTheme {
+    val useDarkTheme = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
+
+    MarkDayTheme(
+        useDarkTheme = useDarkTheme,
+        isPureBlack = isPureBlackEnabled!!
+    ) {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
         val fileRepo = providedFileRepo ?: remember { 
             FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao()) 
         }
-        val weatherClient = remember { GoogleWeatherClient(getSettingsRepository()) }
+        val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
         val navController = rememberNavController()
         var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }

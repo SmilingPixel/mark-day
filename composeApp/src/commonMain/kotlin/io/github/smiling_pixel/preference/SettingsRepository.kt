@@ -1,8 +1,24 @@
 package io.github.smiling_pixel.preference
 
+import io.github.smiling_pixel.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 
 interface SettingsRepository {
+    /**
+     * A flow emitting the current [ThemeMode] setting of the application.
+     * Default is [ThemeMode.SYSTEM].
+     */
+    val themeMode: Flow<ThemeMode>
+
+    /**
+     * Updates the application's theme mode setting.
+     * @param mode The new [ThemeMode] to be applied.
+     */
+    suspend fun setThemeMode(mode: ThemeMode)
+
+    val isPureBlackEnabled: Flow<Boolean>
+    suspend fun setPureBlackEnabled(enabled: Boolean)
+
     val googleWeatherApiKey: Flow<String?>
     suspend fun setGoogleWeatherApiKey(key: String?)
 

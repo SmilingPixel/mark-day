@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.smiling_pixel.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import okio.Path.Companion.toPath
@@ -30,6 +31,36 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
     private val IS_AUTO_SYNC_ENABLED = booleanPreferencesKey("is_auto_sync_enabled")
     private val CLOUD_SYNC_PATH = stringPreferencesKey("cloud_sync_path")
     private val CLOUD_SYNC_DELETION_TOMBSTONES_JSON = stringPreferencesKey("cloud_sync_deletion_tombstones_json")
+    private val THEME_MODE = stringPreferencesKey("theme_mode")
+    private val IS_PURE_BLACK_ENABLED = booleanPreferencesKey("is_pure_black_enabled")
+
+    override val themeMode: Flow<ThemeMode> = dataStore.data
+        .map { preferences ->
+            preferences[THEME_MODE]?.let { modeString ->
+                try {
+                    ThemeMode.valueOf(modeString)
+                } catch (e: IllegalArgumentException) {
+                    ThemeMode.SYSTEM
+                }
+            } ?: ThemeMode.SYSTEM
+        }
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { preferences ->
+            preferences[THEME_MODE] = mode.name
+        }
+    }
+
+    override val isPureBlackEnabled: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[IS_PURE_BLACK_ENABLED] ?: false
+        }
+
+    override suspend fun setPureBlackEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_PURE_BLACK_ENABLED] = enabled
+        }
+    }
 
     override val googleWeatherApiKey: Flow<String?> = dataStore.data
         .map { preferences ->
