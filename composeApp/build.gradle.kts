@@ -145,6 +145,18 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Exclude metadata files from Java libraries (like Google API clients)
+            // that cause packaging conflicts (duplicate files) when merging into the APK.
+            // These files are only used by desktop JVMs and are unnecessary on Android.
+            excludes += setOf(
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/{AL2.0,LGPL2.1}"
+            )
         }
     }
     buildTypes {
