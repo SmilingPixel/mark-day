@@ -1,4 +1,4 @@
-name: Build Desktop
+name: Build Android
 
 on:
   push:
@@ -33,4 +33,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build with Gradle
-        run: ./gradlew composeApp:jvmJar
+        run: ./gradlew assembleDebug
