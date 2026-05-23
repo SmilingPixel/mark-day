@@ -8,7 +8,7 @@ MarkDay is a cross-platform diary and journaling application built with **Kotlin
 - **Unified UI:** Beautiful and consistent Material 3 interface across all devices, powered by Compose Multiplatform.
 - **Local Storage:** Fast and reliable text storage utilizing Room Multiplatform (SQLite).
 - **Rich Content:** Support for rich text and image rendering (via multiplatform-markdown-renderer and Coil).
-- **Sync & Backup:** Google Drive integration for seamless data backups and remote sync.
+- **Sync & Backup (Android/Desktop JVM only):** Google Drive integration for seamless data backups and remote sync. Web (Wasm) support is not implemented yet.
 
 ## Project Structure
 
@@ -70,7 +70,7 @@ Once the build completes successfully, the generated APK will be located at:
 `composeApp/build/outputs/apk/debug/composeApp-debug.apk`
 
 ### Running Tests
-To run all shared tests in the `commonTest` source set:
+To run all multiplatform tests across configured targets:
 ```sh
 ./gradlew allTests
 ```
