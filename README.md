@@ -12,7 +12,7 @@ MarkDay is a cross-platform diary and journaling application built with **Kotlin
 
 ## Project Structure
 
-The codebase is organized into multiplatform modules under `composeApp/src`:
+The codebase is organized into Gradle/Kotlin Multiplatform source sets under `composeApp/src`:
 - `commonMain/` – Core business logic, UI layer (Compose), Navigation, API, and DB interfaces.
 - `androidMain/` – Android-specific implementations (e.g., Ktor OkHttp client, Play Services Auth).
 - `jvmMain/` – Desktop entry point, Swing interop, and JVM implementations.
