@@ -347,45 +347,7 @@ internal fun decodeEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEn
             content = content
         )
     } catch (e: Exception) {
-        return decodeLegacyLineDelimitedEntryForSync(bytes, original)
-    }
-}
-
-@OptIn(ExperimentalTime::class)
-private fun decodeLegacyLineDelimitedEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEntry? {
-    return try {
-        val text = bytes.decodeToString()
-        val lines = text.lines()
-        if (lines.size < 9) return null
-
-        val syncId = lines[0]
-        if (!looksLikeUuid(syncId)) return null
-
-        val title = lines[1]
-        val createdAt = KotlinTimeInstant.fromEpochMilliseconds(lines[2].toLong())
-        val updatedAt = KotlinTimeInstant.fromEpochMilliseconds(lines[3].toLong())
-        val entryDate = LocalDate.parse(lines[4])
-        val weatherCondition = lines[5].takeIf { it.isNotEmpty() }
-        val minTemperature = lines[6].toDoubleOrNull()
-        val maxTemperature = lines[7].toDoubleOrNull()
-        var contentLines = lines.drop(8)
-        if (contentLines.isNotEmpty() && contentLines.last() == "") {
-            contentLines = contentLines.dropLast(1)
-        }
-        val content = contentLines.joinToString("\n")
-        original.copy(
-            syncId = syncId,
-            title = title,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-            entryDate = entryDate,
-            weatherCondition = weatherCondition,
-            minTemperature = minTemperature,
-            maxTemperature = maxTemperature,
-            content = content
-        )
-    } catch (e: Exception) {
-        null
+        return null
     }
 }
 
