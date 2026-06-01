@@ -27,7 +27,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -69,6 +72,8 @@ import io.github.smiling_pixel.util.w
 fun EntryDetailsScreen(
     entry: DiaryEntry?,
     weatherClient: WeatherClient,
+    isSyncing: Boolean = false,
+    onSyncRequest: () -> Unit = {},
     onSave: (DiaryEntry) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -171,6 +176,13 @@ fun EntryDetailsScreen(
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onSyncRequest, enabled = !isSyncing) {
+                    if (isSyncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.CloudQueue, contentDescription = "Sync Cloud")
+                    }
+                }
                 TextButton(onClick = { isEditing = true }) {
                     Text("Edit")
                 }
