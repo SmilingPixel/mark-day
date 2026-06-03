@@ -7,6 +7,7 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlin.math.pow
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.LocalDateTime
@@ -27,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.size
@@ -182,7 +182,7 @@ fun EntryDetailsScreen(
                     if (isSyncing) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.Default.CloudQueue, contentDescription = "Sync Cloud")
+                        Icon(Icons.Default.Refresh, contentDescription = "Sync Cloud")
                     }
                 }
                 TextButton(onClick = { isEditing = true }) {
@@ -395,7 +395,7 @@ fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
     val exp = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt()
     val pre = "KMGTPE"[exp - 1]
-    val value = bytes / kotlin.math.pow(1024.0, exp.toDouble())
+    val value = bytes / 1024.0.pow(exp.toDouble())
     val rounded = kotlin.math.round(value * 10.0) / 10.0
     return "$rounded ${pre}B"
 }
