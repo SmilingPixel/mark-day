@@ -179,10 +179,15 @@ fun EntryDetailsScreen(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = onSyncRequest, enabled = !isSyncing) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = if (isSyncing) "Syncing" else "Sync Cloud"
+                    )
                     if (isSyncing) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync Cloud")
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
                     }
                 }
                 TextButton(onClick = { isEditing = true }) {
