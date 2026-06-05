@@ -318,6 +318,11 @@ fun EntryDetailsScreen(
                 val matches = regex.findAll(entry.content)
                 for (match in matches) {
                     val filePath = match.groupValues[1]
+                    // Reject potentially unsafe paths to prevent directory traversal.
+                    if (filePath.isEmpty() || filePath.contains("..")) {
+                        Logger.w("EntryDetailsScreen", "Rejected potentially unsafe or empty path: $filePath")
+                        continue
+                    }
                     count++
                     try {
                         size += fileManager.getSize(filePath)
