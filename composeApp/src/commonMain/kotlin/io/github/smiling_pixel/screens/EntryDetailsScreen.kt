@@ -399,12 +399,14 @@ fun EntryDetailsScreen(
  * Java's java.text.DecimalFormat out of the box, and we want a consistent
  * way to calculate and display file sizes across Android, JVM, and Wasm/JS.
  * It progressively divides by 1024 to find the correct magnitude and manually
- * truncates to one decimal place using simple math.
+ * rounds to one decimal place using simple math.
  */
 fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
+    val prefixes = "KMGTPE"
     val exp = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt()
-    val pre = "KMGTPE"[exp - 1]
+        .coerceIn(1, prefixes.length)
+    val pre = prefixes[exp - 1]
     val value = bytes / 1024.0.pow(exp.toDouble())
     val rounded = kotlin.math.round(value * 10.0) / 10.0
     return "$rounded ${pre}B"
