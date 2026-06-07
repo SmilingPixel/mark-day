@@ -21,7 +21,8 @@ import kotlin.time.Instant as KotlinTimeInstant
 data class SyncResult(
     val uploaded: Int,
     val downloaded: Int,
-    val unchanged: Int
+    val unchanged: Int,
+    val warnings: List<String> = emptyList()
 )
 
 /**
@@ -80,6 +81,7 @@ suspend fun performCloudSync(
     var uploaded = 0
     var downloaded = 0
     var unchanged = 0
+    val warnings = mutableListOf<String>()
 
     val localEntriesBySyncId = localEntries.associateBy { it.syncId }.toMutableMap()
     val localTombstones = loadLocalDeletionTombstones(settings).toMutableMap()
@@ -134,6 +136,9 @@ suspend fun performCloudSync(
                 if (parsed != null) {
                     repo.update(parsed)
                     downloaded++
+                } else {
+                    val legacyName = quarantineLegacyFile(client, driveFile, remoteContent, parentId)
+                    warnings += "Quarantined unrecognized remote file \"${driveFile.name}\" as \"$legacyName\""
                 }
             } else {
                 unchanged++
@@ -189,13 +194,16 @@ suspend fun performCloudSync(
         if (parsed != null) {
             repo.insert(parsed)
             downloaded++
+        } else {
+            val legacyName = quarantineLegacyFile(client, driveFile, remoteContent, parentId)
+            warnings += "Quarantined unrecognized remote file \"${driveFile.name}\" as \"$legacyName\""
         }
     }
 
     saveLocalDeletionTombstones(settings, localTombstones)
 
     // TODO: Optimise the synchronization process in the future (e.g., batch operations, or more efficient incremental sync).
-    return SyncResult(uploaded, downloaded, unchanged)
+    return SyncResult(uploaded, downloaded, unchanged, warnings.toList())
 }
 
 @OptIn(ExperimentalTime::class)
@@ -278,6 +286,7 @@ private fun looksLikeUuid(value: String): Boolean {
 private const val SYNC_ENTRY_FILE_EXTENSION = ".txt"
 private const val SYNC_ENTRY_FILE_PREFIX = "markday_entry_"
 private const val SYNC_TOMBSTONE_FILE_PREFIX = "markday_tombstone_"
+private const val SYNC_LEGACY_FILE_PREFIX = "markday_legacy_"
 private const val SYNC_ENTRY_MIME_TYPE = "text/plain"
 
 private val syncPayloadJson = Json {
@@ -383,4 +392,24 @@ private suspend fun saveLocalDeletionTombstones(settings: SettingsRepository, to
 private fun encodeTombstoneForSync(syncId: String, deletedAtEpochMillis: Long): ByteArray {
     val payload = SyncDeletionTombstonePayload(syncId = syncId, deletedAtEpochMillis = deletedAtEpochMillis)
     return syncPayloadJson.encodeToString(SyncDeletionTombstonePayload.serializer(), payload).encodeToByteArray()
+}
+
+/**
+ * Renames a remote file that cannot be decoded (e.g., legacy format) to a quarantine prefix
+ * so it is not re-downloaded on every subsequent sync.
+ *
+ * @return the new quarantine file name (even if the operations fail).
+ */
+private suspend fun quarantineLegacyFile(
+    client: CloudDriveClient,
+    driveFile: io.github.smiling_pixel.client.DriveFile,
+    content: ByteArray,
+    parentId: String?
+): String {
+    val legacyName = driveFile.name.replaceFirst(SYNC_ENTRY_FILE_PREFIX, SYNC_LEGACY_FILE_PREFIX)
+    runCatching {
+        client.createFile(legacyName, content, SYNC_ENTRY_MIME_TYPE, parentId)
+        client.deleteFile(driveFile.id)
+    }
+    return legacyName
 }
