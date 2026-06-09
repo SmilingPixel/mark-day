@@ -1,10 +1,8 @@
 package io.github.smiling_pixel.filesystem
 
-import coil3.ImageLoader
 import coil3.Uri
 import coil3.decode.DataSource
 import coil3.fetch.SourceFetchResult
-import coil3.request.Options
 import kotlinx.coroutines.test.runTest
 import okio.IOException
 import kotlin.test.Test
