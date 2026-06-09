@@ -9,6 +9,7 @@ interface FileManager {
     suspend fun delete(fileName: String)
     suspend fun exists(fileName: String): Boolean
     suspend fun list(): List<String>
+    suspend fun getSize(fileName: String): Long
 }
 
 class LocalFileManager(
@@ -64,6 +65,11 @@ class LocalFileManager(
         } else {
             emptyList()
         }
+    }
+
+    override suspend fun getSize(fileName: String): Long {
+        val filePath = rootPath / fileName
+        return fileSystem.metadataOrNull(filePath)?.size ?: 0L
     }
 }
 

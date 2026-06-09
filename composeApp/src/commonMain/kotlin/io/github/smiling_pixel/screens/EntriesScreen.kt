@@ -104,11 +104,35 @@ fun EntriesScreen(
         )
     }
 
+    val performSync = {
+        if (!isSyncing) {
+            isSyncing = true
+            scope.launch {
+                try {
+                    val result = io.github.smiling_pixel.sync.performCloudSync(
+                        client = getCloudDriveClient(),
+                        repo = repo,
+                        localEntries = entriesState
+                    )
+                    syncSummary = "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    syncError = e.message ?: "An unknown error occurred during sync"
+                } finally {
+                    isSyncing = false
+                }
+            }
+        }
+    }
+
     if (isCreating || selectedEntry != null) {
         // Details view (New or Edit)
         EntryDetailsScreen(
             entry = selectedEntry,
             weatherClient = weatherClient,
+            isSyncing = isSyncing,
+            onSyncRequest = { performSync() },
             onSave = { entry ->
                 scope.launch {
                     if (isCreating) {
@@ -136,27 +160,7 @@ fun EntriesScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         FloatingActionButton(
-                            onClick = {
-                                if (isSyncing) return@FloatingActionButton
-                                isSyncing = true
-                                scope.launch {
-                                    try {
-                                        val result = io.github.smiling_pixel.sync.performCloudSync(
-                                            client = getCloudDriveClient(),
-                                            repo = repo,
-                                            localEntries = entriesState
-                                        )
-                                        syncSummary = "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
-                                    } catch (e: CancellationException) {
-                                        // Preserve coroutine cancellation instead of showing it as a sync error.
-                                        throw e
-                                    } catch (e: Exception) {
-                                        syncError = e.message ?: "An unknown error occurred during sync"
-                                    } finally {
-                                        isSyncing = false
-                                    }
-                                }
-                            },
+                            onClick = { performSync() },
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             if (isSyncing) {

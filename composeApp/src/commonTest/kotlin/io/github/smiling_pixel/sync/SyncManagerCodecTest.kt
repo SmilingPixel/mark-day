@@ -36,17 +36,16 @@ class SyncManagerCodecTest {
 
     @Test
     fun decodeReturnsNullWhenSyncIdIsNotUuid() {
-        val payload = buildString {
-            appendLine("legacy-id-42")
-            appendLine("Title")
-            appendLine("1711843200000")
-            appendLine("1711843200000")
-            appendLine("2026-03-31")
-            appendLine("")
-            appendLine("")
-            appendLine("")
-            appendLine("Body")
-        }.encodeToByteArray()
+        val payload = """
+            {
+              "syncId": "legacy-id-42",
+              "title": "Title",
+              "createdAtEpochMillis": 1711843200000,
+              "updatedAtEpochMillis": 1711843200000,
+              "entryDateIso": "2026-03-31",
+              "content": "Body"
+            }
+        """.trimIndent().encodeToByteArray()
 
         val decoded = decodeEntryForSync(
             bytes = payload,

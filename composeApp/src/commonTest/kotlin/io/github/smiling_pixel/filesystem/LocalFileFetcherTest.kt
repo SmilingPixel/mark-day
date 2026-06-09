@@ -49,15 +49,11 @@ class LocalFileFetcherTest {
         val fileManager = InMemoryFileManager()
         val factory = LocalFileFetcher.Factory(fileManager)
         
-        // This is a dummy implementation of PlatformContext and ImageLoader because they are not used in the Factory.create()
-        val options = Options(coil3.PlatformContext.INSTANCE)
-        val imageLoader = ImageLoader(coil3.PlatformContext.INSTANCE)
-
-        val fetcher = factory.create(Uri("localfile:///image.jpg"), options, imageLoader)
+        val fetcher = factory.createForUri(Uri("localfile:///image.jpg"))
         assertNotNull(fetcher)
         
         // Factory should trim the leading slash
-        val fetcher2 = factory.create(Uri("localfile:image.jpg"), options, imageLoader)
+        val fetcher2 = factory.createForUri(Uri("localfile:image.jpg"))
         assertNotNull(fetcher2)
     }
 
@@ -65,11 +61,8 @@ class LocalFileFetcherTest {
     fun testFactoryCreateWithInvalidScheme() {
         val fileManager = InMemoryFileManager()
         val factory = LocalFileFetcher.Factory(fileManager)
-        
-        val options = Options(coil3.PlatformContext.INSTANCE)
-        val imageLoader = ImageLoader(coil3.PlatformContext.INSTANCE)
 
-        val fetcher = factory.create(Uri("https://example.com/image.jpg"), options, imageLoader)
+        val fetcher = factory.createForUri(Uri("https://example.com/image.jpg"))
         assertNull(fetcher)
     }
 
@@ -77,16 +70,13 @@ class LocalFileFetcherTest {
     fun testFactoryCreateWithUnsafePath() {
         val fileManager = InMemoryFileManager()
         val factory = LocalFileFetcher.Factory(fileManager)
-        
-        val options = Options(coil3.PlatformContext.INSTANCE)
-        val imageLoader = ImageLoader(coil3.PlatformContext.INSTANCE)
 
         // Traversal path
-        val fetcher = factory.create(Uri("localfile://../image.jpg"), options, imageLoader)
+        val fetcher = factory.createForUri(Uri("localfile://../image.jpg"))
         assertNull(fetcher)
         
         // Empty path
-        val fetcher2 = factory.create(Uri("localfile:"), options, imageLoader)
+        val fetcher2 = factory.createForUri(Uri("localfile:"))
         assertNull(fetcher2)
     }
 }

@@ -7,6 +7,7 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlin.math.pow
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.LocalDateTime
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +57,7 @@ import kotlin.time.ExperimentalTime
 import io.github.smiling_pixel.util.Logger
 import io.github.smiling_pixel.util.e
 import io.github.smiling_pixel.util.w
+import io.github.smiling_pixel.filesystem.fileManager
 
 /**
  * Screen displaying the details of a diary entry.
@@ -69,6 +74,8 @@ import io.github.smiling_pixel.util.w
 fun EntryDetailsScreen(
     entry: DiaryEntry?,
     weatherClient: WeatherClient,
+    isSyncing: Boolean = false,
+    onSyncRequest: () -> Unit = {},
     onSave: (DiaryEntry) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -171,6 +178,18 @@ fun EntryDetailsScreen(
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onSyncRequest, enabled = !isSyncing) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = if (isSyncing) "Syncing" else "Sync Cloud"
+                    )
+                    if (isSyncing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
                 TextButton(onClick = { isEditing = true }) {
                     Text("Edit")
                 }
@@ -289,6 +308,32 @@ fun EntryDetailsScreen(
                 modifier = Modifier.fillMaxSize()
             )
         } else {
+            var fileCount by remember(entry) { mutableStateOf(0) }
+            var totalFileSize by remember(entry) { mutableStateOf(0L) }
+
+            LaunchedEffect(entry!!.content) {
+                var count = 0
+                var size = 0L
+                val regex = Regex("localfile:/*([^)\\s]+)")
+                val matches = regex.findAll(entry.content)
+                for (match in matches) {
+                    val filePath = match.groupValues[1]
+                    // Reject potentially unsafe paths to prevent directory traversal.
+                    if (filePath.isEmpty() || filePath.contains("..")) {
+                        Logger.w("EntryDetailsScreen", "Rejected potentially unsafe or empty path: $filePath")
+                        continue
+                    }
+                    count++
+                    try {
+                        size += fileManager.getSize(filePath)
+                    } catch (e: Exception) {
+                        Logger.w("EntryDetailsScreen", "Failed to get size for $filePath: $e")
+                    }
+                }
+                fileCount = count
+                totalFileSize = size
+            }
+
             // show timestamps
             val createdLocal = entry!!.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
             val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -317,6 +362,15 @@ fun EntryDetailsScreen(
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
+            Spacer(modifier = Modifier.height(6.dp))
+
+            val statsText = "${entry.content.length} chars | $fileCount files, ${formatBytes(totalFileSize)}"
+            Text(
+                text = statsText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
             if (entry.weatherCondition != null) {
@@ -337,4 +391,23 @@ fun EntryDetailsScreen(
             )
         }
     }
+}
+
+/**
+ * A utility to format byte sizes into human-readable strings (e.g., KB, MB).
+ * We need this custom utility because Kotlin Multiplatform does not provide
+ * Java's java.text.DecimalFormat out of the box, and we want a consistent
+ * way to calculate and display file sizes across Android, JVM, and Wasm/JS.
+ * It progressively divides by 1024 to find the correct magnitude and manually
+ * rounds to one decimal place using simple math.
+ */
+fun formatBytes(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+    val prefixes = "KMGTPE"
+    val exp = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt()
+        .coerceIn(1, prefixes.length)
+    val pre = prefixes[exp - 1]
+    val value = bytes / 1024.0.pow(exp.toDouble())
+    val rounded = kotlin.math.round(value * 10.0) / 10.0
+    return "$rounded ${pre}B"
 }

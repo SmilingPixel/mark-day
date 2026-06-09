@@ -22,4 +22,8 @@ class InMemoryFileManager : FileManager {
     override suspend fun list(): List<String> {
         return files.keys.toList()
     }
+
+    override suspend fun getSize(fileName: String): Long {
+        return files[fileName]?.size?.toLong() ?: 0L
+    }
 }

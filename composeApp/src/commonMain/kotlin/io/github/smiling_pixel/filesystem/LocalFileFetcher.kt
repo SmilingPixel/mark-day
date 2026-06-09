@@ -53,6 +53,10 @@ class LocalFileFetcher(
      */
     class Factory(private val fileManager: FileManager) : Fetcher.Factory<Uri> {
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
+            return createForUri(data)
+        }
+
+        internal fun createForUri(data: Uri): Fetcher? {
             if (data.scheme == "localfile") {
                 // data.path might start with /, e.g. /image.jpg
                 val fileName = data.path?.trimStart('/') ?: run {
