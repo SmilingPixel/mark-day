@@ -3,6 +3,8 @@ package io.github.smiling_pixel.sync
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.util.Logger
+import io.github.smiling_pixel.util.e
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -11,10 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.logging.Level
-import java.util.logging.Logger
 
-private val autoSyncLogger: Logger = Logger.getLogger("AutoSync")
 private var autoSyncJob: Job? = null
 
 actual fun startAutoSync(repo: DiaryRepository): Job? {
@@ -38,11 +37,7 @@ actual fun startAutoSync(repo: DiaryRepository): Job? {
                 // Do not treat normal coroutine cancellation as a sync failure.
                 throw e
             } catch (e: Exception) {
-                autoSyncLogger.log(
-                    Level.SEVERE,
-                    AUTO_SYNC_ERROR_MESSAGE,
-                    e,
-                )
+                Logger.e(AUTO_SYNC_LOG_TAG, AUTO_SYNC_ERROR_MESSAGE, e)
                 nextDelayMs = (nextDelayMs * 2).coerceAtMost(AUTO_SYNC_MAX_BACKOFF_MS)
             }
         }
