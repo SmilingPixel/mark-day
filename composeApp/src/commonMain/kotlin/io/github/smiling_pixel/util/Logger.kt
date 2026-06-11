@@ -34,7 +34,8 @@ enum class LogLevel {
 }
 
 expect object Logger {
-    fun log(level: LogLevel, tag: String, message: String)
+    fun log(level: LogLevel, tag: String, message: String, throwable: Throwable? = null)
+    fun setLogLevel(level: LogLevel)
 }
 
 /**
@@ -45,7 +46,7 @@ expect object Logger {
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.d(tag: String, message: String) = log(LogLevel.DEBUG, tag, message)
+fun Logger.d(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.DEBUG, tag, message, throwable)
 
 /**
  * Logs an info-level message using this [Logger].
@@ -55,7 +56,7 @@ fun Logger.d(tag: String, message: String) = log(LogLevel.DEBUG, tag, message)
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.i(tag: String, message: String) = log(LogLevel.INFO, tag, message)
+fun Logger.i(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.INFO, tag, message, throwable)
 
 /**
  * Logs a warning-level message using this [Logger].
@@ -65,7 +66,7 @@ fun Logger.i(tag: String, message: String) = log(LogLevel.INFO, tag, message)
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.w(tag: String, message: String) = log(LogLevel.WARN, tag, message)
+fun Logger.w(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.WARN, tag, message, throwable)
 
 /**
  * Logs an error-level message using this [Logger].
@@ -75,4 +76,4 @@ fun Logger.w(tag: String, message: String) = log(LogLevel.WARN, tag, message)
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.e(tag: String, message: String) = log(LogLevel.ERROR, tag, message)
+fun Logger.e(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.ERROR, tag, message, throwable)
