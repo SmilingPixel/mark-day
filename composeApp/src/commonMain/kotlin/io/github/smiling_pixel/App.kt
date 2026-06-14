@@ -47,6 +47,7 @@ import io.github.smiling_pixel.screens.InsightsScreen
 import io.github.smiling_pixel.screens.MomentsScreen
 import io.github.smiling_pixel.screens.ProfileScreen
 import io.github.smiling_pixel.screens.SettingsScreen
+import io.github.smiling_pixel.util.Logger
 import coil3.compose.setSingletonImageLoaderFactory
 
 @Serializable
@@ -84,9 +85,16 @@ fun App(
     val settingsRepository = remember { getSettingsRepository() }
     val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
     val isPureBlackEnabled by settingsRepository.isPureBlackEnabled.collectAsState(initial = null)
+    val logLevel by settingsRepository.logLevel.collectAsState(initial = null)
+    val isLogPersistenceEnabled by settingsRepository.isLogPersistenceEnabled.collectAsState(initial = null)
 
-    if (themeMode == null || isPureBlackEnabled == null) {
+    if (themeMode == null || isPureBlackEnabled == null || logLevel == null || isLogPersistenceEnabled == null) {
         return
+    }
+
+    LaunchedEffect(logLevel, isLogPersistenceEnabled) {
+        Logger.setLogLevel(logLevel!!)
+        Logger.setPersistenceEnabled(isLogPersistenceEnabled!!)
     }
 
     val useDarkTheme = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
