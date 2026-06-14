@@ -1,6 +1,7 @@
 package io.github.smiling_pixel.preference
 
 import io.github.smiling_pixel.theme.ThemeMode
+import io.github.smiling_pixel.util.LogLevel
 import kotlinx.browser.localStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,17 @@ class WasmJsSettingsRepository : SettingsRepository {
         } ?: ThemeMode.SYSTEM
     )
     private val _isPureBlackEnabled = MutableStateFlow(localStorage.getItem("is_pure_black_enabled") == "true")
+    private val _logLevel = MutableStateFlow(
+        localStorage.getItem("log_level")?.let {
+            try {
+                LogLevel.valueOf(it)
+            } catch (e: IllegalArgumentException) {
+                LogLevel.ERROR
+            }
+        } ?: LogLevel.ERROR
+    )
+    private val _isLogPersistenceEnabled =
+        MutableStateFlow(localStorage.getItem("is_log_persistence_enabled") == "true")
 
     override val themeMode: Flow<ThemeMode> = _themeMode.asStateFlow()
 
@@ -80,6 +92,20 @@ class WasmJsSettingsRepository : SettingsRepository {
             localStorage.setItem("cloud_sync_deletion_tombstones_json", value)
             _cloudSyncDeletionTombstonesJson.value = value
         }
+    }
+
+    override val logLevel: Flow<LogLevel> = _logLevel.asStateFlow()
+
+    override suspend fun setLogLevel(level: LogLevel) {
+        localStorage.setItem("log_level", level.name)
+        _logLevel.value = level
+    }
+
+    override val isLogPersistenceEnabled: Flow<Boolean> = _isLogPersistenceEnabled.asStateFlow()
+
+    override suspend fun setLogPersistenceEnabled(enabled: Boolean) {
+        localStorage.setItem("is_log_persistence_enabled", enabled.toString())
+        _isLogPersistenceEnabled.value = enabled
     }
 }
 
