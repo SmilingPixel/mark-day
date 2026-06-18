@@ -120,7 +120,7 @@ suspend fun performCloudSync(
         if (remote != null) {
             val (driveFile, remoteTime) = remote
             if (localTime > remoteTime) {
-                val name = buildRemoteEntryFileName(local.syncId, localTime)
+                val name = buildSyncEntryFileName(local.syncId, localTime)
                 client.createFile(name, encodeEntryForSync(local), SYNC_ENTRY_MIME_TYPE, parentId)
                 // Delete old files only after successful upload to avoid losing the only remote copy.
                 val oldVersions = remoteFileVersions[local.syncId].orEmpty()
@@ -145,7 +145,7 @@ suspend fun performCloudSync(
             }
             remoteFileMap.remove(local.syncId)
         } else {
-            val name = buildRemoteEntryFileName(local.syncId, localTime)
+            val name = buildSyncEntryFileName(local.syncId, localTime)
             client.createFile(name, encodeEntryForSync(local), SYNC_ENTRY_MIME_TYPE, parentId)
             uploaded++
         }
@@ -238,7 +238,14 @@ private suspend fun getOrCreateFolderByPath(client: CloudDriveClient, path: Stri
     return currentParentId
 }
 
-private fun buildRemoteEntryFileName(syncId: String, timestampMillis: Long): String {
+/**
+ * Builds the cloud-sync file name used for a diary entry payload.
+ *
+ * @param syncId Stable cross-device entry identifier.
+ * @param timestampMillis Entry update timestamp in epoch milliseconds.
+ * @return The sync-compatible entry file name.
+ */
+internal fun buildSyncEntryFileName(syncId: String, timestampMillis: Long): String {
     return "${SYNC_ENTRY_FILE_PREFIX}${syncId}_${timestampMillis}${SYNC_ENTRY_FILE_EXTENSION}"
 }
 

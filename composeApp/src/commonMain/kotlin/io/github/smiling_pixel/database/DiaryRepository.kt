@@ -1,6 +1,8 @@
 package io.github.smiling_pixel.database
 
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.preference.SettingsRepository
+import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.sync.recordLocalDeletionTombstone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +17,8 @@ import kotlinx.coroutines.launch
  */
 class DiaryRepository(
     private val dao: IDiaryDao,
-    scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
+    scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
+    private val settings: SettingsRepository = getSettingsRepository()
 ) {
     private val _entries = MutableStateFlow<List<DiaryEntry>>(emptyList())
     val entries: StateFlow<List<DiaryEntry>> = _entries
@@ -47,7 +50,7 @@ class DiaryRepository(
 
     suspend fun delete(entry: DiaryEntry, recordSyncTombstone: Boolean = true) {
         if (recordSyncTombstone) {
-            recordLocalDeletionTombstone(entry.syncId)
+            recordLocalDeletionTombstone(entry.syncId, settings = settings)
         }
         dao.delete(entry)
     }
