@@ -25,7 +25,7 @@ class LocalFileFetcher(
     override suspend fun fetch(): FetchResult? {
         val bytes = fileManager.read(fileName) ?: run {
             val errorMessage = "LocalFileFetcher: File not found: $fileName"
-            Logger.e("LocalFileFetcher", errorMessage)
+            runCatching { Logger.e("LocalFileFetcher", errorMessage) }
             // Returning null here would let Coil try other fetchers, but since we handle 
             // the 'localfile' scheme, no other fetcher is expected to succeed.
             // Throwing an exception provides a more informative error result.
@@ -48,7 +48,7 @@ class LocalFileFetcher(
      * - `localfile:/image.jpg`
      * - `localfile:///image.jpg`
      *
-     * In all cases, [Uri.path] is used and any leading '/' characters are trimmed before
+     * In all cases, the path part is normalized by trimming leading '/' characters before
      * being passed to [FileManager]. Only the `localfile` scheme is recognized here.
      */
     class Factory(private val fileManager: FileManager) : Fetcher.Factory<Uri> {
@@ -57,9 +57,18 @@ class LocalFileFetcher(
         }
 
         internal fun createForUri(data: Uri): Fetcher? {
-            if (data.scheme == "localfile") {
-                // data.path might start with /, e.g. /image.jpg
-                val fileName = data.path?.trimStart('/') ?: run {
+            // Coil's multiplatform Uri parser does not expose custom `localfile` URIs consistently
+            // across targets. On JVM, for example, `Uri("localfile:///image.jpg")` can report the
+            // whole string through `scheme`, while `Uri("localfile:image.jpg")` may have no usable
+            // `path`. The raw string remains the stable source of truth for the URI forms this
+            // factory documents, so we use it as the primary guard and normalize it below.
+            val rawUri = data.toString()
+            if (rawUri == "localfile" || rawUri == "localfile:" || rawUri == "localfile://") {
+                Logger.w("LocalFileFetcher", "Empty path in URI: $data")
+                return null
+            }
+            if (data.scheme == "localfile" || rawUri.startsWith("localfile:")) {
+                val fileName = localFileName(rawUri, data.path) ?: run {
                     Logger.w("LocalFileFetcher", "Empty path in URI: $data")
                     return null
                 }
@@ -73,6 +82,25 @@ class LocalFileFetcher(
                 return LocalFileFetcher(fileName, fileManager)
             }
             return null
+        }
+
+        private fun localFileName(rawUri: String, uriPath: String?): String? {
+            // Prefer the raw URI for opaque values like `localfile:image.jpg`; fall back to
+            // `Uri.path` for targets that parse hierarchical values into a normal path. Some JVM
+            // string forms include a trailing ':' for custom schemes, so the candidate helper trims
+            // that before the empty/traversal checks in `createForUri`.
+            if (rawUri.startsWith("localfile:")) {
+                val rawPath = rawUri.removePrefix("localfile:")
+                return rawPath.toLocalFileNameCandidate()
+            }
+
+            return uriPath?.toLocalFileNameCandidate()
+        }
+
+        private fun String.toLocalFileNameCandidate(): String? {
+            return trimStart('/')
+                .removeSuffix(":")
+                .takeIf { it.isNotEmpty() && it != "localfile" && !it.startsWith("localfile:") }
         }
     }
 }
