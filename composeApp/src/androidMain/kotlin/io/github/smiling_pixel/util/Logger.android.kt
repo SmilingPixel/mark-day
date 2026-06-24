@@ -14,7 +14,9 @@ actual object Logger {
     private const val LOG_FILE_NAME = "markday.log"
     private const val PREVIOUS_LOG_FILE_NAME = "markday.previous.log"
 
+    @Volatile
     private var minLogLevel: LogLevel = LogLevel.ERROR
+    @Volatile
     private var isPersistenceEnabled: Boolean = false
     private val lock = Any()
 
