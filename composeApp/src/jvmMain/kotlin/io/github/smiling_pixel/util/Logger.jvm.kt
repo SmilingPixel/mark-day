@@ -81,7 +81,9 @@ actual object Logger {
                 file.parentFile?.mkdirs()
                 if (file.length() >= MAX_LOG_BYTES) {
                     previousLogFile().delete()
-                    file.renameTo(previousLogFile())
+                    if (!file.renameTo(previousLogFile())) {
+                        file.writeText("")
+                    }
                 }
                 file.appendText(formatLine(level, tag, message, throwable))
             }
