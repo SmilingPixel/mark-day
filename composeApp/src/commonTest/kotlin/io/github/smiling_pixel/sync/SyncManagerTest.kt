@@ -7,6 +7,7 @@ import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.preference.SettingsRepository
+import io.github.smiling_pixel.util.LogLevel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -332,6 +333,8 @@ private class InMemorySettingsRepository : SettingsRepository {
     private val autoSyncEnabledState = MutableStateFlow(false)
     private val cloudSyncPathState = MutableStateFlow("/MarkDay")
     private val cloudSyncDeletionTombstonesJsonState = MutableStateFlow<String?>(null)
+    private val logLevelState = MutableStateFlow(LogLevel.ERROR)
+    private val logPersistenceEnabledState = MutableStateFlow(false)
 
     override val themeMode: Flow<io.github.smiling_pixel.theme.ThemeMode> = themeModeState.asStateFlow()
 
@@ -373,6 +376,18 @@ private class InMemorySettingsRepository : SettingsRepository {
 
     override suspend fun setCloudSyncDeletionTombstonesJson(value: String?) {
         cloudSyncDeletionTombstonesJsonState.value = value
+    }
+
+    override val logLevel: Flow<LogLevel> = logLevelState.asStateFlow()
+
+    override suspend fun setLogLevel(level: LogLevel) {
+        logLevelState.value = level
+    }
+
+    override val isLogPersistenceEnabled: Flow<Boolean> = logPersistenceEnabledState.asStateFlow()
+
+    override suspend fun setLogPersistenceEnabled(enabled: Boolean) {
+        logPersistenceEnabledState.value = enabled
     }
 }
 
