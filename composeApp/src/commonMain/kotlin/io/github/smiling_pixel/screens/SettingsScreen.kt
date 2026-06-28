@@ -441,11 +441,11 @@ fun SettingsScreen() {
                 )
             }
             Switch(
-                checked = isLogPersistenceEnabled,
+                checked = if (isWebTrial) false else isLogPersistenceEnabled,
                 onCheckedChange = { isChecked ->
                     scope.launch {
                         settingsRepository.setLogPersistenceEnabled(isChecked)
-                        diagnosticsMessage = if (isWebTrial && isChecked) {
+                        diagnosticsMessage = if (isChecked) {
                             "Log persistence is unavailable on this platform."
                         } else if (isChecked) {
                             "Log persistence enabled."
@@ -453,7 +453,8 @@ fun SettingsScreen() {
                             "Log persistence disabled."
                         }
                     }
-                }
+                },
+                enabled = !isWebTrial
             )
         }
 
