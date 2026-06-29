@@ -9,3 +9,12 @@ Key components found in this module:
 - **Networking:** Android-native networking components, like the Ktor `okhttp` client engine.
 - **System Integrations:** Access to Google Play Services for things like Google Drive Auth and Cloud Sync features.
 - **Platform APIs:** Specific implementations requiring `Context` or Android application framework resources.
+
+## Build and Manifest Notes
+Android compilation depends on AndroidX Core KTX because Android log export uses `FileProvider` to share generated log files safely with other apps. Keep the `FileProvider` declaration in `AndroidManifest.xml` and the matching paths resource in `res/xml/log_export_paths.xml` in sync with the logger export implementation.
+
+To validate Android-specific changes from the repository root, run:
+
+```bash
+./gradlew assembleDebug
+```

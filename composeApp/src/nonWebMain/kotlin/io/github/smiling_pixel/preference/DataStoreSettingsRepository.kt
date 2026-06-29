@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.smiling_pixel.theme.ThemeMode
+import io.github.smiling_pixel.util.LogLevel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import okio.Path.Companion.toPath
@@ -33,6 +34,8 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
     private val CLOUD_SYNC_DELETION_TOMBSTONES_JSON = stringPreferencesKey("cloud_sync_deletion_tombstones_json")
     private val THEME_MODE = stringPreferencesKey("theme_mode")
     private val IS_PURE_BLACK_ENABLED = booleanPreferencesKey("is_pure_black_enabled")
+    private val LOG_LEVEL = stringPreferencesKey("log_level")
+    private val IS_LOG_PERSISTENCE_ENABLED = booleanPreferencesKey("is_log_persistence_enabled")
 
     override val themeMode: Flow<ThemeMode> = dataStore.data
         .map { preferences ->
@@ -122,6 +125,34 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
             } else {
                 preferences[CLOUD_SYNC_DELETION_TOMBSTONES_JSON] = value
             }
+        }
+    }
+
+    override val logLevel: Flow<LogLevel> = dataStore.data
+        .map { preferences ->
+            preferences[LOG_LEVEL]?.let { levelString ->
+                try {
+                    LogLevel.valueOf(levelString)
+                } catch (e: IllegalArgumentException) {
+                    LogLevel.ERROR
+                }
+            } ?: LogLevel.ERROR
+        }
+
+    override suspend fun setLogLevel(level: LogLevel) {
+        dataStore.edit { preferences ->
+            preferences[LOG_LEVEL] = level.name
+        }
+    }
+
+    override val isLogPersistenceEnabled: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[IS_LOG_PERSISTENCE_ENABLED] ?: false
+        }
+
+    override suspend fun setLogPersistenceEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_LOG_PERSISTENCE_ENABLED] = enabled
         }
     }
 }

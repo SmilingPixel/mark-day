@@ -44,7 +44,11 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
 import io.github.smiling_pixel.client.UserInfo
 import io.github.smiling_pixel.client.getCloudDriveClient
+import io.github.smiling_pixel.getPlatform
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.util.LogExportResult
+import io.github.smiling_pixel.util.LogLevel
+import io.github.smiling_pixel.util.Logger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
@@ -62,12 +66,17 @@ fun SettingsScreen() {
     val isCloudSyncEnabled by settingsRepository.isCloudSyncEnabled.collectAsState(initial = false)
     val isAutoSyncEnabled by settingsRepository.isAutoSyncEnabled.collectAsState(initial = false)
     val cloudSyncPath by settingsRepository.cloudSyncPath.collectAsState(initial = "/MarkDay")
+    val logLevel by settingsRepository.logLevel.collectAsState(initial = LogLevel.ERROR)
+    val isLogPersistenceEnabled by settingsRepository.isLogPersistenceEnabled.collectAsState(initial = false)
+    val platform = remember { getPlatform() }
+    val isWebTrial = platform.name.contains("Web", ignoreCase = true)
 
     val cloudDriveClient = remember { getCloudDriveClient() }
     var userInfo by remember { mutableStateOf<UserInfo?>(null) }
     var isAuthorized by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var diagnosticsMessage by remember { mutableStateOf<String?>(null) }
     var isCheckingAuth by remember { mutableStateOf(false) }
 
     val checkAuthStatus by rememberUpdatedState {
@@ -342,6 +351,147 @@ fun SettingsScreen() {
                 }
                 Text("Connect to Google Drive")
             }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = "Diagnostics",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Log Level",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LogLevel.entries.forEach { level ->
+                val isSelected = logLevel == level
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.RadioButton,
+                            onClick = {
+                                scope.launch {
+                                    settingsRepository.setLogLevel(level)
+                                    diagnosticsMessage = "Log level set to ${level.name}."
+                                }
+                            }
+                        )
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        )
+                        .then(
+                            if (isSelected) {
+                                Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = level.name,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                Text(
+                    text = "Persist Logs",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = if (isWebTrial) {
+                        "Persistence is unavailable on the web trial. Console logging still works."
+                    } else {
+                        "Store filtered logs locally so they can be exported for troubleshooting."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = if (isWebTrial) false else isLogPersistenceEnabled,
+                onCheckedChange = { isChecked ->
+                    scope.launch {
+                        settingsRepository.setLogPersistenceEnabled(isChecked)
+                        diagnosticsMessage = if (isChecked) {
+                            "Log persistence is unavailable on this platform."
+                        } else if (isChecked) {
+                            "Log persistence enabled."
+                        } else {
+                            "Log persistence disabled."
+                        }
+                    }
+                },
+                enabled = !isWebTrial
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        diagnosticsMessage = when (val result = Logger.exportPersistedLogs()) {
+                            is LogExportResult.Success -> "Logs exported to ${result.destinationDescription}."
+                            LogExportResult.NoLogs -> "No logs to export."
+                            LogExportResult.Unavailable -> "Log export is unavailable on this platform."
+                            is LogExportResult.Failure -> result.message
+                        }
+                    }
+                }
+            ) {
+                Text("Export Logs")
+            }
+            Button(
+                onClick = {
+                    scope.launch {
+                        Logger.clearPersistedLogs()
+                        diagnosticsMessage = "Logs cleared."
+                    }
+                }
+            ) {
+                Text("Clear Logs")
+            }
+        }
+        diagnosticsMessage?.let { message ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))

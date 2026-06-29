@@ -1,9 +1,10 @@
 package io.github.smiling_pixel.sync
 
-import android.util.Log
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.util.Logger
+import io.github.smiling_pixel.util.e
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -37,11 +38,7 @@ actual fun startAutoSync(repo: DiaryRepository): Job? {
                 // Do not treat normal coroutine cancellation as a sync failure.
                 throw e
             } catch (e: Exception) {
-                Log.e(
-                    AUTO_SYNC_LOG_TAG,
-                    AUTO_SYNC_ERROR_MESSAGE,
-                    e,
-                )
+                Logger.e(AUTO_SYNC_LOG_TAG, AUTO_SYNC_ERROR_MESSAGE, e)
                 nextDelayMs = (nextDelayMs * 2).coerceAtMost(AUTO_SYNC_MAX_BACKOFF_MS)
             }
         }
