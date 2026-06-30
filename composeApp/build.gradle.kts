@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.ktlint)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
 }
@@ -18,17 +19,30 @@ plugins {
 
 val enableIos = project.findProperty("enableIos")?.toString()?.toBoolean() == true
 
+ktlint {
+    filter {
+        exclude("**/ActualResourceCollectors.kt")
+        exclude("**/AppDatabaseConstructor.kt")
+        exclude("**/AppDatabase_Impl.kt")
+        exclude("**/DiaryRoomDao_Impl.kt")
+        exclude("**/Drawable*.kt")
+        exclude("**/ExpectResourceCollectors.kt")
+        exclude("**/FileMetadataRoomDao_Impl.kt")
+        exclude("**/Res.kt")
+    }
+}
+
 kotlin {
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     if (enableIos) {
         listOf(
             iosArm64(),
-            iosSimulatorArm64()
+            iosSimulatorArm64(),
         ).forEach { iosTarget ->
             iosTarget.binaries.framework {
                 baseName = "ComposeApp"
@@ -36,15 +50,15 @@ kotlin {
             }
         }
     }
-    
+
     jvm()
-    
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
         binaries.executable()
     }
-    
+
     sourceSets {
         all {
             languageSettings.optIn("kotlin.time.ExperimentalTime")
@@ -71,7 +85,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             // Kotlinx serialization (used by typed navigation routes)
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0")
-            
+
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
@@ -81,7 +95,7 @@ kotlin {
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor)
         }
-        
+
         val nonWebMain by creating {
             dependsOn(commonMain.get())
             dependencies {
@@ -134,12 +148,21 @@ room {
 
 android {
     namespace = "io.github.smiling_pixel.mark_day"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
 
     defaultConfig {
         applicationId = "io.github.smiling_pixel.mark_day"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+        targetSdk =
+            libs.versions.android.targetSdk
+                .get()
+                .toInt()
         versionCode = 1
         versionName = "1.0"
     }
@@ -148,18 +171,20 @@ android {
             // Exclude metadata files from Java libraries (like Google API clients)
             // that cause packaging conflicts (duplicate files) when merging into the APK.
             // These files are only used by desktop JVMs and are unnecessary on Android.
-            excludes += setOf(
-                "/META-INF/{AL2.0,LGPL2.1}",
-                "META-INF/INDEX.LIST",
-                "META-INF/DEPENDENCIES"
-            )
+            excludes +=
+                setOf(
+                    "/META-INF/{AL2.0,LGPL2.1}",
+                    "META-INF/INDEX.LIST",
+                    "META-INF/DEPENDENCIES",
+                )
             // Keep a single copy of license/notice files for OSS compliance
-            pickFirsts += setOf(
-                "META-INF/LICENSE",
-                "META-INF/LICENSE.txt",
-                "META-INF/NOTICE",
-                "META-INF/NOTICE.txt"
-            )
+            pickFirsts +=
+                setOf(
+                    "META-INF/LICENSE",
+                    "META-INF/LICENSE.txt",
+                    "META-INF/NOTICE",
+                    "META-INF/NOTICE.txt",
+                )
         }
     }
     buildTypes {
