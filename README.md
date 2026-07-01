@@ -69,6 +69,22 @@ To build a debug APK for Android from the command line, run:
 Once the build completes successfully, the generated APK will be located at:
 `composeApp/build/outputs/apk/debug/composeApp-debug.apk`
 
+### Code Style
+Kotlin formatting is enforced with the Gradle ktlint plugin. Run the check before submitting Kotlin changes:
+```sh
+./gradlew ktlintCheck
+```
+
+Most formatting issues can be fixed automatically with:
+```sh
+./gradlew ktlintFormat
+```
+
+The ktlint setup lives in the Gradle version catalog, the root and `composeApp` Gradle scripts, and `.editorconfig`.
+Generated Kotlin files under `build/generated` are skipped, and a few existing project conventions are configured there:
+the `smiling_pixel` package segment, Compose-style function names, existing interface file names, and existing preference
+key naming.
+
 ### Running Tests
 To run all multiplatform tests across configured targets:
 ```sh
@@ -78,3 +94,11 @@ Or to run tests for a specific platform (e.g., Desktop/JVM):
 ```sh
 ./gradlew composeApp:jvmTest
 ```
+
+The broader Gradle verification command is:
+```sh
+./gradlew check
+```
+
+At the time ktlint was added, `ktlintCheck` passed, while `check` was intentionally not pursued further because the
+remaining failure was the unrelated Wasm yarn lock actualization task `kotlinWasmStoreYarnLock`.
