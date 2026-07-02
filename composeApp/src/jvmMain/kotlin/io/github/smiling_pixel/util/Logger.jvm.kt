@@ -13,6 +13,7 @@ actual object Logger {
 
     @Volatile
     private var minLogLevel: LogLevel = LogLevel.ERROR
+
     @Volatile
     private var isPersistenceEnabled: Boolean = false
     private val lock = Any()
@@ -29,14 +30,20 @@ actual object Logger {
 
     actual fun isPersistenceEnabled(): Boolean = isPersistenceEnabled
 
-    actual fun log(level: LogLevel, tag: String, message: String, throwable: Throwable?) {
+    actual fun log(
+        level: LogLevel,
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         if (level.ordinal < minLogLevel.ordinal) return
         val stream = if (level == LogLevel.ERROR || level == LogLevel.WARN) System.err else System.out
-        val fullMessage = if (throwable != null) {
-            "$message\n${throwable.stackTraceToString()}"
-        } else {
-            message
-        }
+        val fullMessage =
+            if (throwable != null) {
+                "$message\n${throwable.stackTraceToString()}"
+            } else {
+                message
+            }
         stream.println("[$level] $tag: $fullMessage")
         if (isPersistenceEnabled) {
             persist(level, tag, message, throwable)
@@ -50,10 +57,11 @@ actual object Logger {
                 return LogExportResult.NoLogs
             }
 
-            val chooser = JFileChooser().apply {
-                selectedFile = File(timestampedExportFileName())
-                dialogTitle = "Export MarkDay logs"
-            }
+            val chooser =
+                JFileChooser().apply {
+                    selectedFile = File(timestampedExportFileName())
+                    dialogTitle = "Export MarkDay logs"
+                }
             val result = chooser.showSaveDialog(null)
             if (result != JFileChooser.APPROVE_OPTION) {
                 return LogExportResult.Failure("Log export was cancelled.")
@@ -74,7 +82,12 @@ actual object Logger {
         }
     }
 
-    private fun persist(level: LogLevel, tag: String, message: String, throwable: Throwable?) {
+    private fun persist(
+        level: LogLevel,
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         try {
             synchronized(lock) {
                 val file = logFile()
@@ -98,12 +111,18 @@ actual object Logger {
         return previous + current
     }
 
-    private fun formatLine(level: LogLevel, tag: String, message: String, throwable: Throwable?): String {
-        val fullMessage = if (throwable != null) {
-            "$message\n${throwable.stackTraceToString()}"
-        } else {
-            message
-        }
+    private fun formatLine(
+        level: LogLevel,
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ): String {
+        val fullMessage =
+            if (throwable != null) {
+                "$message\n${throwable.stackTraceToString()}"
+            } else {
+                message
+            }
         return "${timestamp()} [$level] $tag: $fullMessage\n"
     }
 

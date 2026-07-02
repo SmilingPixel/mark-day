@@ -7,19 +7,24 @@ import kotlin.time.Clock
 
 class FileRepository(
     private val fileManager: FileManager,
-    private val metadataDao: IFileMetadataDao
+    private val metadataDao: IFileMetadataDao,
 ) {
     val files: Flow<List<FileMetadata>> = metadataDao.getAllFiles()
 
-    suspend fun saveFile(fileName: String, content: ByteArray, tags: List<String> = emptyList()) {
+    suspend fun saveFile(
+        fileName: String,
+        content: ByteArray,
+        tags: List<String> = emptyList(),
+    ) {
         // 1. Save raw file
         fileManager.save(fileName, content)
 
         // 2. Save metadata
         // Check if metadata exists
-        val existing = metadataDao.getFileByPath(fileName) // Assuming filePath stores the relative path/filename used in FileManager
+        // File path stores the relative path or filename used in FileManager.
+        val existing = metadataDao.getFileByPath(fileName)
         if (existing != null) {
-            // Update tags if provided, otherwise keep existing? 
+            // Update tags if provided, otherwise keep existing?
             // For now, let's update tags if the list is not empty, or just update the file.
             // The requirement says "manage them better", so keeping it simple.
             metadataDao.updateFile(existing.copy(tags = tags))
@@ -29,8 +34,8 @@ class FileRepository(
                     originalFileName = fileName,
                     filePath = fileName,
                     tags = tags,
-                    createdAt = Clock.System.now().toEpochMilliseconds()
-                )
+                    createdAt = Clock.System.now().toEpochMilliseconds(),
+                ),
             )
         }
     }
@@ -42,8 +47,6 @@ class FileRepository(
         // 2. Delete metadata
         metadataDao.deleteFile(fileMetadata)
     }
-    
-    suspend fun getFileContent(fileMetadata: FileMetadata): ByteArray? {
-        return fileManager.read(fileMetadata.filePath)
-    }
+
+    suspend fun getFileContent(fileMetadata: FileMetadata): ByteArray? = fileManager.read(fileMetadata.filePath)
 }

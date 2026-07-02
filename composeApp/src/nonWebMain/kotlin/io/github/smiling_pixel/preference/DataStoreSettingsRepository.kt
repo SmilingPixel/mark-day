@@ -16,17 +16,18 @@ internal const val DATA_STORE_FILE_NAME = "prefs.preferences_pb"
 
 expect fun producePath(): String
 
-fun createDataStore(producePath: () -> String): DataStore<Preferences> {
-    return PreferenceDataStoreFactory.createWithPath(
-        produceFile = { producePath().toPath() }
+fun createDataStore(producePath: () -> String): DataStore<Preferences> =
+    PreferenceDataStoreFactory.createWithPath(
+        produceFile = { producePath().toPath() },
     )
-}
 
 private val dataStore: DataStore<Preferences> by lazy {
     createDataStore { producePath() }
 }
 
-class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>) : SettingsRepository {
+class DataStoreSettingsRepository(
+    private val dataStore: DataStore<Preferences>,
+) : SettingsRepository {
     private val WEATHER_API_KEY = stringPreferencesKey("weather_api_key")
     private val IS_CLOUD_SYNC_ENABLED = booleanPreferencesKey("is_cloud_sync_enabled")
     private val IS_AUTO_SYNC_ENABLED = booleanPreferencesKey("is_auto_sync_enabled")
@@ -37,16 +38,17 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
     private val LOG_LEVEL = stringPreferencesKey("log_level")
     private val IS_LOG_PERSISTENCE_ENABLED = booleanPreferencesKey("is_log_persistence_enabled")
 
-    override val themeMode: Flow<ThemeMode> = dataStore.data
-        .map { preferences ->
-            preferences[THEME_MODE]?.let { modeString ->
-                try {
-                    ThemeMode.valueOf(modeString)
-                } catch (e: IllegalArgumentException) {
-                    ThemeMode.SYSTEM
-                }
-            } ?: ThemeMode.SYSTEM
-        }
+    override val themeMode: Flow<ThemeMode> =
+        dataStore.data
+            .map { preferences ->
+                preferences[THEME_MODE]?.let { modeString ->
+                    try {
+                        ThemeMode.valueOf(modeString)
+                    } catch (e: IllegalArgumentException) {
+                        ThemeMode.SYSTEM
+                    }
+                } ?: ThemeMode.SYSTEM
+            }
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { preferences ->
@@ -54,10 +56,11 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val isPureBlackEnabled: Flow<Boolean> = dataStore.data
-        .map { preferences ->
-            preferences[IS_PURE_BLACK_ENABLED] ?: false
-        }
+    override val isPureBlackEnabled: Flow<Boolean> =
+        dataStore.data
+            .map { preferences ->
+                preferences[IS_PURE_BLACK_ENABLED] ?: false
+            }
 
     override suspend fun setPureBlackEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
@@ -65,10 +68,11 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val googleWeatherApiKey: Flow<String?> = dataStore.data
-        .map { preferences ->
-            preferences[WEATHER_API_KEY]
-        }
+    override val googleWeatherApiKey: Flow<String?> =
+        dataStore.data
+            .map { preferences ->
+                preferences[WEATHER_API_KEY]
+            }
 
     override suspend fun setGoogleWeatherApiKey(key: String?) {
         dataStore.edit { preferences ->
@@ -80,10 +84,11 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val isCloudSyncEnabled: Flow<Boolean> = dataStore.data
-        .map { preferences ->
-            preferences[IS_CLOUD_SYNC_ENABLED] ?: false
-        }
+    override val isCloudSyncEnabled: Flow<Boolean> =
+        dataStore.data
+            .map { preferences ->
+                preferences[IS_CLOUD_SYNC_ENABLED] ?: false
+            }
 
     override suspend fun setCloudSyncEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
@@ -91,10 +96,11 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val isAutoSyncEnabled: Flow<Boolean> = dataStore.data
-        .map { preferences ->
-            preferences[IS_AUTO_SYNC_ENABLED] ?: false
-        }
+    override val isAutoSyncEnabled: Flow<Boolean> =
+        dataStore.data
+            .map { preferences ->
+                preferences[IS_AUTO_SYNC_ENABLED] ?: false
+            }
 
     override suspend fun setAutoSyncEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
@@ -102,10 +108,11 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val cloudSyncPath: Flow<String> = dataStore.data
-        .map { preferences ->
-            preferences[CLOUD_SYNC_PATH] ?: "/MarkDay"
-        }
+    override val cloudSyncPath: Flow<String> =
+        dataStore.data
+            .map { preferences ->
+                preferences[CLOUD_SYNC_PATH] ?: "/MarkDay"
+            }
 
     override suspend fun setCloudSyncPath(path: String) {
         dataStore.edit { preferences ->
@@ -113,10 +120,11 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val cloudSyncDeletionTombstonesJson: Flow<String?> = dataStore.data
-        .map { preferences ->
-            preferences[CLOUD_SYNC_DELETION_TOMBSTONES_JSON]
-        }
+    override val cloudSyncDeletionTombstonesJson: Flow<String?> =
+        dataStore.data
+            .map { preferences ->
+                preferences[CLOUD_SYNC_DELETION_TOMBSTONES_JSON]
+            }
 
     override suspend fun setCloudSyncDeletionTombstonesJson(value: String?) {
         dataStore.edit { preferences ->
@@ -128,16 +136,17 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val logLevel: Flow<LogLevel> = dataStore.data
-        .map { preferences ->
-            preferences[LOG_LEVEL]?.let { levelString ->
-                try {
-                    LogLevel.valueOf(levelString)
-                } catch (e: IllegalArgumentException) {
-                    LogLevel.ERROR
-                }
-            } ?: LogLevel.ERROR
-        }
+    override val logLevel: Flow<LogLevel> =
+        dataStore.data
+            .map { preferences ->
+                preferences[LOG_LEVEL]?.let { levelString ->
+                    try {
+                        LogLevel.valueOf(levelString)
+                    } catch (e: IllegalArgumentException) {
+                        LogLevel.ERROR
+                    }
+                } ?: LogLevel.ERROR
+            }
 
     override suspend fun setLogLevel(level: LogLevel) {
         dataStore.edit { preferences ->
@@ -145,10 +154,11 @@ class DataStoreSettingsRepository(private val dataStore: DataStore<Preferences>)
         }
     }
 
-    override val isLogPersistenceEnabled: Flow<Boolean> = dataStore.data
-        .map { preferences ->
-            preferences[IS_LOG_PERSISTENCE_ENABLED] ?: false
-        }
+    override val isLogPersistenceEnabled: Flow<Boolean> =
+        dataStore.data
+            .map { preferences ->
+                preferences[IS_LOG_PERSISTENCE_ENABLED] ?: false
+            }
 
     override suspend fun setLogPersistenceEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->

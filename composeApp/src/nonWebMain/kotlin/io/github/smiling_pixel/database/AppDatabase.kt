@@ -11,13 +11,17 @@ import io.github.smiling_pixel.model.RoomFileMetadata
 @Database(entities = [RoomDiaryEntry::class, RoomFileMetadata::class], version = 4)
 @TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
-abstract class AppDatabase : RoomDatabase(), IAppDatabase {
+abstract class AppDatabase :
+    RoomDatabase(),
+    IAppDatabase {
     abstract fun roomDiaryDao(): DiaryRoomDao
+
     abstract fun fileMetadataRoomDao(): FileMetadataRoomDao
 
     // Provide a common IDiaryDao by wrapping the Room DAO with an implementation that maps
     // platform-specific Room entities to the common `DiaryEntry`.
     override fun diaryDao(): IDiaryDao = DiaryDaoImpl(roomDiaryDao())
+
     override fun fileMetadataDao(): IFileMetadataDao = FileMetadataDaoImpl(fileMetadataRoomDao())
 }
 

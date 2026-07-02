@@ -8,17 +8,20 @@ import java.io.File
 import javax.swing.JFileChooser
 import javax.swing.SwingUtilities
 
-actual class PlatformFile(val file: File)
+actual class PlatformFile(
+    val file: File,
+)
 
-actual suspend fun PlatformFile.readBytes(): ByteArray = withContext(Dispatchers.IO) {
-    file.readBytes()
-}
+actual suspend fun PlatformFile.readBytes(): ByteArray =
+    withContext(Dispatchers.IO) {
+        file.readBytes()
+    }
 
 actual fun PlatformFile.name(): String = file.name
 
 @Composable
-actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher {
-    return remember {
+actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher =
+    remember {
         object : FilePickerLauncher {
             override fun launch() {
                 SwingUtilities.invokeLater {
@@ -33,4 +36,3 @@ actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): Fi
             }
         }
     }
-}

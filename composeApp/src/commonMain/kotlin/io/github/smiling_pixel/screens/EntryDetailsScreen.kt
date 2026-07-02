@@ -1,21 +1,5 @@
 package io.github.smiling_pixel.screens
 
-import io.github.smiling_pixel.model.DiaryEntry
-import io.github.smiling_pixel.client.WeatherClient
-import io.github.smiling_pixel.model.Location
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
-import kotlin.time.Clock
-import kotlin.time.Instant
-import kotlin.math.pow
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.coroutines.launch
-
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,18 +7,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,17 +37,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlin.time.ExperimentalTime
+import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
+import com.mikepenz.markdown.m3.Markdown
+import io.github.smiling_pixel.client.WeatherClient
+import io.github.smiling_pixel.filesystem.fileManager
+import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.util.Logger
 import io.github.smiling_pixel.util.e
 import io.github.smiling_pixel.util.w
-import io.github.smiling_pixel.filesystem.fileManager
+import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+import kotlin.math.pow
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /**
  * Screen displaying the details of a diary entry.
  * It allows the user to view the entry's content, title, date, and weather,
  * or edit these details if they switch to edit mode.
- * 
+ *
  * @param entry The [DiaryEntry] to display or edit. If null, creates a new entry.
  * @param weatherClient The [WeatherClient] to fetch weather information.
  * @param onSave Callback invoked when the user saves the entry.
@@ -77,23 +76,31 @@ fun EntryDetailsScreen(
     isSyncing: Boolean = false,
     onSyncRequest: () -> Unit = {},
     onSave: (DiaryEntry) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var isEditing by remember { mutableStateOf(entry == null) }
     var title by remember { mutableStateOf(entry?.title ?: "") }
     var content by remember { mutableStateOf(entry?.content ?: "") }
-    var entryDate by remember { mutableStateOf(entry?.entryDate ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date) }
+    var entryDate by remember {
+        mutableStateOf(
+            entry?.entryDate ?: Clock.System
+                .now()
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+                .date,
+        )
+    }
     var showDatePicker by remember { mutableStateOf(false) }
-    
+
     var weatherCondition by remember { mutableStateOf(entry?.weatherCondition ?: "") }
     var minTemp by remember { mutableStateOf(entry?.minTemperature) }
     var maxTemp by remember { mutableStateOf(entry?.maxTemperature) }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = entryDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
-        )
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = entryDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds(),
+            )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
@@ -110,15 +117,18 @@ fun EntryDetailsScreen(
                 TextButton(onClick = { showDatePicker = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         ) {
             DatePicker(state = datePickerState)
         }
     }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -147,25 +157,26 @@ fun EntryDetailsScreen(
                 }
                 Button(onClick = {
                     val now = Clock.System.now()
-                    val newEntry = entry?.copy(
-                        title = title,
-                        content = content,
-                        updatedAt = now,
-                        entryDate = entryDate,
-                        weatherCondition = weatherCondition,
-                        minTemperature = minTemp,
-                        maxTemperature = maxTemp
-                    ) ?: DiaryEntry(
-                        id = 0, // 0 means new entry, DAO should handle ID generation
-                        title = title,
-                        content = content,
-                        createdAt = now,
-                        updatedAt = now,
-                        entryDate = entryDate,
-                        weatherCondition = weatherCondition,
-                        minTemperature = minTemp,
-                        maxTemperature = maxTemp
-                    )
+                    val newEntry =
+                        entry?.copy(
+                            title = title,
+                            content = content,
+                            updatedAt = now,
+                            entryDate = entryDate,
+                            weatherCondition = weatherCondition,
+                            minTemperature = minTemp,
+                            maxTemperature = maxTemp,
+                        ) ?: DiaryEntry(
+                            id = 0, // 0 means new entry, DAO should handle ID generation
+                            title = title,
+                            content = content,
+                            createdAt = now,
+                            updatedAt = now,
+                            entryDate = entryDate,
+                            weatherCondition = weatherCondition,
+                            minTemperature = minTemp,
+                            maxTemperature = maxTemp,
+                        )
                     onSave(newEntry)
                     isEditing = false
                 }) {
@@ -181,12 +192,12 @@ fun EntryDetailsScreen(
                 IconButton(onClick = onSyncRequest, enabled = !isSyncing) {
                     Icon(
                         Icons.Default.Refresh,
-                        contentDescription = if (isSyncing) "Syncing" else "Sync Cloud"
+                        contentDescription = if (isSyncing) "Syncing" else "Sync Cloud",
                     )
                     if (isSyncing) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
                         )
                     }
                 }
@@ -208,26 +219,27 @@ fun EntryDetailsScreen(
                 label = { Text("Title") },
                 placeholder = { Text("Enter title...") },
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.headlineMedium
+                textStyle = MaterialTheme.typography.headlineMedium,
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true }
-                    .padding(vertical = 8.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true }
+                        .padding(vertical = 8.dp),
             ) {
                 Icon(Icons.Default.DateRange, contentDescription = "Select Date")
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Date: $entryDate",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(12.dp))
@@ -237,7 +249,7 @@ fun EntryDetailsScreen(
                     value = weatherCondition,
                     onValueChange = { weatherCondition = it },
                     label = { Text("Condition") },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 OutlinedTextField(
@@ -245,28 +257,45 @@ fun EntryDetailsScreen(
                     onValueChange = { },
                     label = { Text("Min/Max Temp") },
                     modifier = Modifier.weight(1f),
-                    readOnly = true
+                    readOnly = true,
                 )
                 IconButton(onClick = {
                     scope.launch {
                         try {
                             val location = Location(0.0, 0.0) // TODO: Get actual location @SmilingPixel
                             Logger.w("EntryDetailsScreen", "Using hardcoded location: $location")
-                            val targetDate = entry?.createdAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date 
-                                ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-                            
-                            val start = LocalDateTime(targetDate, LocalTime(5, 0)).toInstant(TimeZone.currentSystemDefault())
-                            val end = LocalDateTime(targetDate, LocalTime(23, 59)).toInstant(TimeZone.currentSystemDefault())
-                            
+                            val targetDate =
+                                entry?.createdAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date
+                                    ?: Clock.System
+                                        .now()
+                                        .toLocalDateTime(TimeZone.currentSystemDefault())
+                                        .date
+
+                            val start =
+                                LocalDateTime(
+                                    targetDate,
+                                    LocalTime(5, 0),
+                                ).toInstant(TimeZone.currentSystemDefault())
+                            val end =
+                                LocalDateTime(
+                                    targetDate,
+                                    LocalTime(23, 59),
+                                ).toInstant(TimeZone.currentSystemDefault())
+
                             val now = Clock.System.now()
-                            val todayStart = LocalDateTime(now.toLocalDateTime(TimeZone.currentSystemDefault()).date, LocalTime(0, 0)).toInstant(TimeZone.currentSystemDefault())
-                            
-                            val hourly = if (start < todayStart) {
-                                weatherClient.getHourlyHistory(location, start, end)
-                            } else {
-                                weatherClient.getHourlyForecast(location)
-                            }
-                            
+                            val todayStart =
+                                LocalDateTime(
+                                    now.toLocalDateTime(TimeZone.currentSystemDefault()).date,
+                                    LocalTime(0, 0),
+                                ).toInstant(TimeZone.currentSystemDefault())
+
+                            val hourly =
+                                if (start < todayStart) {
+                                    weatherClient.getHourlyHistory(location, start, end)
+                                } else {
+                                    weatherClient.getHourlyForecast(location)
+                                }
+
                             if (hourly.isNotEmpty()) {
                                 // Filter for the relevant time window if forecast returns more
                                 val relevant = hourly.filter { it.startTime >= start && it.endTime <= end }
@@ -277,7 +306,7 @@ fun EntryDetailsScreen(
                                     // Let's take the one at noon or middle of list
                                     weatherCondition = relevant[relevant.size / 2].condition
                                 } else if (hourly.isNotEmpty()) {
-                                     // Fallback if filter fails (e.g. forecast boundaries)
+                                    // Fallback if filter fails (e.g. forecast boundaries)
                                     minTemp = hourly.minOf { it.minTemperature }
                                     maxTemp = hourly.maxOf { it.maxTemperature }
                                     weatherCondition = hourly[hourly.size / 2].condition
@@ -305,7 +334,7 @@ fun EntryDetailsScreen(
                 onValueChange = { content = it },
                 label = { Text("Content") },
                 placeholder = { Text("Type anything... Markdown is supported.") },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
             var fileCount by remember(entry) { mutableStateOf(0) }
@@ -341,25 +370,31 @@ fun EntryDetailsScreen(
             Text(
                 text = "Date: ${entry.entryDate}",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
-            
+
             Spacer(modifier = Modifier.height(6.dp))
 
-            val createdTimeStr = "${createdLocal.hour.toString().padStart(2, '0')}:${createdLocal.minute.toString().padStart(2, '0')}:${createdLocal.second.toString().padStart(2, '0')}"
+            val createdTimeStr = "${createdLocal.hour.toString().padStart(
+                2,
+                '0',
+            )}:${createdLocal.minute.toString().padStart(2, '0')}:${createdLocal.second.toString().padStart(2, '0')}"
             Text(
                 text = "Created: ${createdLocal.date} $createdTimeStr",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outlineVariant
+                color = MaterialTheme.colorScheme.outlineVariant,
             )
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            val updatedTimeStr = "${updatedLocal.hour.toString().padStart(2, '0')}:${updatedLocal.minute.toString().padStart(2, '0')}:${updatedLocal.second.toString().padStart(2, '0')}"
+            val updatedTimeStr = "${updatedLocal.hour.toString().padStart(
+                2,
+                '0',
+            )}:${updatedLocal.minute.toString().padStart(2, '0')}:${updatedLocal.second.toString().padStart(2, '0')}"
             Text(
                 text = "Updated: ${updatedLocal.date} $updatedTimeStr",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outlineVariant
+                color = MaterialTheme.colorScheme.outlineVariant,
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -368,15 +403,17 @@ fun EntryDetailsScreen(
             Text(
                 text = statsText,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outlineVariant
+                color = MaterialTheme.colorScheme.outlineVariant,
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             if (entry.weatherCondition != null) {
-                 Text(
-                    text = "Weather: ${entry.weatherCondition}, Temp: ${entry.minTemperature}°C - ${entry.maxTemperature}°C",
-                    style = MaterialTheme.typography.bodySmall
+                val weatherText =
+                    "Weather: ${entry.weatherCondition}, Temp: ${entry.minTemperature}°C - ${entry.maxTemperature}°C"
+                Text(
+                    text = weatherText,
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
             }
@@ -404,8 +441,10 @@ fun EntryDetailsScreen(
 fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
     val prefixes = "KMGTPE"
-    val exp = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt()
-        .coerceIn(1, prefixes.length)
+    val exp =
+        (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0))
+            .toInt()
+            .coerceIn(1, prefixes.length)
     val pre = prefixes[exp - 1]
     val value = bytes / 1024.0.pow(exp.toDouble())
     val rounded = kotlin.math.round(value * 10.0) / 10.0

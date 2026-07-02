@@ -13,12 +13,13 @@ import kotlinx.coroutines.withContext
 
 actual class PlatformFile(
     val uri: Uri,
-    val contentResolver: ContentResolver
+    val contentResolver: ContentResolver,
 )
 
-actual suspend fun PlatformFile.readBytes(): ByteArray = withContext(Dispatchers.IO) {
-    contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
-}
+actual suspend fun PlatformFile.readBytes(): ByteArray =
+    withContext(Dispatchers.IO) {
+        contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
+    }
 
 actual fun PlatformFile.name(): String {
     var name = ""
@@ -41,13 +42,14 @@ actual fun PlatformFile.name(): String {
 actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher {
     val context = LocalContext.current
     val contentResolver = context.contentResolver
-    
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris ->
-        val files = uris.map { PlatformFile(it, contentResolver) }
-        onFilesSelected(files)
-    }
+
+    val launcher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenMultipleDocuments(),
+        ) { uris ->
+            val files = uris.map { PlatformFile(it, contentResolver) }
+            onFilesSelected(files)
+        }
 
     return remember {
         object : FilePickerLauncher {

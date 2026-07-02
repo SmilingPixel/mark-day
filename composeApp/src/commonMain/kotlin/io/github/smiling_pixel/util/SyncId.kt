@@ -7,6 +7,4 @@ import kotlin.uuid.Uuid
  * Generates a UUID v4 string used as the stable cross-device synchronization identifier.
  */
 @OptIn(ExperimentalUuidApi::class)
-fun generateSyncId(): String {
-    return Uuid.random().toString()
-}
+fun generateSyncId(): String = Uuid.random().toString()

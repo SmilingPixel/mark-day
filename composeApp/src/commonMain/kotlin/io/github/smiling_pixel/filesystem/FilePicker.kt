@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 expect class PlatformFile
 
 expect suspend fun PlatformFile.readBytes(): ByteArray
+
 expect fun PlatformFile.name(): String
 
 interface FilePickerLauncher {

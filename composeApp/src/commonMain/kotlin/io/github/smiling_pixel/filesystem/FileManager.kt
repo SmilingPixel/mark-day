@@ -4,19 +4,26 @@ import okio.FileSystem
 import okio.Path.Companion.toPath
 
 interface FileManager {
-    suspend fun save(fileName: String, content: ByteArray)
+    suspend fun save(
+        fileName: String,
+        content: ByteArray,
+    )
+
     suspend fun read(fileName: String): ByteArray?
+
     suspend fun delete(fileName: String)
+
     suspend fun exists(fileName: String): Boolean
+
     suspend fun list(): List<String>
+
     suspend fun getSize(fileName: String): Long
 }
 
 class LocalFileManager(
     private val fileSystem: FileSystem,
-    private val rootDir: String
+    private val rootDir: String,
 ) : FileManager {
-
     private val rootPath = rootDir.toPath()
 
     init {
@@ -25,7 +32,10 @@ class LocalFileManager(
         }
     }
 
-    override suspend fun save(fileName: String, content: ByteArray) {
+    override suspend fun save(
+        fileName: String,
+        content: ByteArray,
+    ) {
         val filePath = rootPath / fileName
         // Ensure parent directories exist
         val parent = filePath.parent
@@ -55,23 +65,19 @@ class LocalFileManager(
         }
     }
 
-    override suspend fun exists(fileName: String): Boolean {
-        return fileSystem.exists(rootPath / fileName)
-    }
+    override suspend fun exists(fileName: String): Boolean = fileSystem.exists(rootPath / fileName)
 
-    override suspend fun list(): List<String> {
-        return if (fileSystem.exists(rootPath)) {
+    override suspend fun list(): List<String> =
+        if (fileSystem.exists(rootPath)) {
             fileSystem.list(rootPath).map { it.name }
         } else {
             emptyList()
         }
-    }
 
     override suspend fun getSize(fileName: String): Long {
         val filePath = rootPath / fileName
         return fileSystem.metadataOrNull(filePath)?.size ?: 0L
     }
 }
-
 
 expect val fileManager: FileManager

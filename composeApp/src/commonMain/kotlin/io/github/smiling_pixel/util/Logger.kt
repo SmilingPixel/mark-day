@@ -30,7 +30,7 @@ enum class LogLevel {
      * application is in an unexpected state and may not be able to continue
      * normally.
      */
-    ERROR
+    ERROR,
 }
 
 /**
@@ -45,7 +45,7 @@ sealed interface LogExportResult {
      */
     data class Success(
         val fileName: String,
-        val destinationDescription: String
+        val destinationDescription: String,
     ) : LogExportResult
 
     /**
@@ -63,7 +63,9 @@ sealed interface LogExportResult {
      *
      * @property message A user-readable failure message.
      */
-    data class Failure(val message: String) : LogExportResult
+    data class Failure(
+        val message: String,
+    ) : LogExportResult
 }
 
 /**
@@ -78,7 +80,12 @@ expect object Logger {
      * @param message The message to log.
      * @param throwable Optional throwable details to include with the message.
      */
-    fun log(level: LogLevel, tag: String, message: String, throwable: Throwable? = null)
+    fun log(
+        level: LogLevel,
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    )
 
     /**
      * Sets the minimum severity that will be emitted by this logger.
@@ -129,7 +136,11 @@ expect object Logger {
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.d(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.DEBUG, tag, message, throwable)
+fun Logger.d(
+    tag: String,
+    message: String,
+    throwable: Throwable? = null,
+) = log(LogLevel.DEBUG, tag, message, throwable)
 
 /**
  * Logs an info-level message using this [Logger].
@@ -139,7 +150,11 @@ fun Logger.d(tag: String, message: String, throwable: Throwable? = null) = log(L
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.i(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.INFO, tag, message, throwable)
+fun Logger.i(
+    tag: String,
+    message: String,
+    throwable: Throwable? = null,
+) = log(LogLevel.INFO, tag, message, throwable)
 
 /**
  * Logs a warning-level message using this [Logger].
@@ -149,7 +164,11 @@ fun Logger.i(tag: String, message: String, throwable: Throwable? = null) = log(L
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.w(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.WARN, tag, message, throwable)
+fun Logger.w(
+    tag: String,
+    message: String,
+    throwable: Throwable? = null,
+) = log(LogLevel.WARN, tag, message, throwable)
 
 /**
  * Logs an error-level message using this [Logger].
@@ -159,4 +178,8 @@ fun Logger.w(tag: String, message: String, throwable: Throwable? = null) = log(L
  * @param tag A short tag identifying the log source.
  * @param message The message to be logged.
  */
-fun Logger.e(tag: String, message: String, throwable: Throwable? = null) = log(LogLevel.ERROR, tag, message, throwable)
+fun Logger.e(
+    tag: String,
+    message: String,
+    throwable: Throwable? = null,
+) = log(LogLevel.ERROR, tag, message, throwable)

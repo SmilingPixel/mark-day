@@ -9,5 +9,5 @@ data class RoomFileMetadata(
     val originalFileName: String,
     val filePath: String,
     val tags: List<String>,
-    val createdAt: Long
+    val createdAt: Long,
 )

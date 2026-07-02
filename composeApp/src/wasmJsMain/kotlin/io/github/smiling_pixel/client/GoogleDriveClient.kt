@@ -5,46 +5,40 @@ package io.github.smiling_pixel.client
  * CURRENTLY NOT IMPLEMENTED.
  */
 class GoogleDriveClient : CloudDriveClient {
-
-    override suspend fun listFiles(parentId: String?): List<DriveFile> {
+    override suspend fun listFiles(parentId: String?): List<DriveFile> =
         throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
 
-    override suspend fun createFile(name: String, content: ByteArray, mimeType: String, parentId: String?): DriveFile {
+    override suspend fun createFile(
+        name: String,
+        content: ByteArray,
+        mimeType: String,
+        parentId: String?,
+    ): DriveFile = throw NotImplementedError("Google Drive is not supported on Web target yet.")
+
+    override suspend fun createFolder(
+        name: String,
+        parentId: String?,
+    ): DriveFile = throw NotImplementedError("Google Drive is not supported on Web target yet.")
+
+    override suspend fun deleteFile(fileId: String): Unit =
         throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
 
-    override suspend fun createFolder(name: String, parentId: String?): DriveFile {
+    override suspend fun downloadFile(fileId: String): ByteArray =
         throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
 
-    override suspend fun deleteFile(fileId: String) {
+    override suspend fun updateFile(
+        fileId: String,
+        content: ByteArray,
+    ): DriveFile = throw NotImplementedError("Google Drive is not supported on Web target yet.")
+
+    override suspend fun isAuthorized(): Boolean = false
+
+    override suspend fun authorize(): Boolean =
         throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
 
-    override suspend fun downloadFile(fileId: String): ByteArray {
-        throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
+    override suspend fun signOut(): Unit = throw NotImplementedError("Google Drive is not supported on Web target yet.")
 
-    override suspend fun updateFile(fileId: String, content: ByteArray): DriveFile {
-        throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
-
-    override suspend fun isAuthorized(): Boolean {
-        return false
-    }
-
-    override suspend fun authorize(): Boolean {
-        throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
-
-    override suspend fun signOut() {
-        throw NotImplementedError("Google Drive is not supported on Web target yet.")
-    }
-    
-    override suspend fun getUserInfo(): UserInfo? {
-        return null
-    }
+    override suspend fun getUserInfo(): UserInfo? = null
 }
 
 actual fun getCloudDriveClient(): CloudDriveClient = GoogleDriveClient()

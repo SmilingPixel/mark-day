@@ -2,8 +2,8 @@ package io.github.smiling_pixel
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
-import io.github.smiling_pixel.database.createDatabase
 import io.github.smiling_pixel.database.DiaryRepository
+import io.github.smiling_pixel.database.createDatabase
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
 

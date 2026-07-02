@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * Simple in-memory DAO implementation for commonMain/testing.
  * Uses a MutableStateFlow to provide reactive updates.
  */
-class InMemoryDiaryDao(initial: List<DiaryEntry> = emptyList()) : IDiaryDao {
+class InMemoryDiaryDao(
+    initial: List<DiaryEntry> = emptyList(),
+) : IDiaryDao {
     private val state = MutableStateFlow(initial.toList())
 
     override val entriesFlow: Flow<List<DiaryEntry>> = state

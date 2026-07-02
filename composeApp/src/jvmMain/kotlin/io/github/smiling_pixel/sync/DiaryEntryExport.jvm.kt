@@ -3,15 +3,14 @@ package io.github.smiling_pixel.sync
 import java.io.File
 import javax.swing.JFileChooser
 
-internal actual suspend fun writeDiaryEntryExportFiles(
-    files: List<DiaryEntryExportFile>
-): DiaryEntryExportResult {
+internal actual suspend fun writeDiaryEntryExportFiles(files: List<DiaryEntryExportFile>): DiaryEntryExportResult {
     return try {
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Export MarkDay diary entries"
-            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-            isAcceptAllFileFilterUsed = false
-        }
+        val chooser =
+            JFileChooser().apply {
+                dialogTitle = "Export MarkDay diary entries"
+                fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+                isAcceptAllFileFilterUsed = false
+            }
         val result = chooser.showSaveDialog(null)
         if (result != JFileChooser.APPROVE_OPTION) {
             return DiaryEntryExportResult.Failure("Diary entry export was cancelled.")

@@ -17,11 +17,12 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ProfileScreen(onBack: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
         verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Simple placeholder avatar/title
         Text(text = "User", style = MaterialTheme.typography.titleLarge)

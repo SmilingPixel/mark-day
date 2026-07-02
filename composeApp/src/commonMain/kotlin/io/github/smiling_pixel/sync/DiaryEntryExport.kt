@@ -15,7 +15,7 @@ sealed interface DiaryEntryExportResult {
      */
     data class Success(
         val fileCount: Int,
-        val destinationDescription: String
+        val destinationDescription: String,
     ) : DiaryEntryExportResult
 
     /**
@@ -33,7 +33,9 @@ sealed interface DiaryEntryExportResult {
      *
      * @property message A user-readable failure message.
      */
-    data class Failure(val message: String) : DiaryEntryExportResult
+    data class Failure(
+        val message: String,
+    ) : DiaryEntryExportResult
 }
 
 /**
@@ -51,24 +53,22 @@ suspend fun exportDiaryEntries(entries: List<DiaryEntry>): DiaryEntryExportResul
 }
 
 @OptIn(ExperimentalTime::class)
-internal fun buildDiaryEntryExportFiles(entries: List<DiaryEntry>): List<DiaryEntryExportFile> {
-    return entries
+internal fun buildDiaryEntryExportFiles(entries: List<DiaryEntry>): List<DiaryEntryExportFile> =
+    entries
         .sortedWith(
             compareBy<DiaryEntry> { it.entryDate }
                 .thenBy { it.updatedAt }
-                .thenBy { it.syncId }
-        )
-        .map { entry ->
+                .thenBy { it.syncId },
+        ).map { entry ->
             DiaryEntryExportFile(
                 fileName = buildSyncEntryFileName(entry.syncId, entry.updatedAt.toEpochMilliseconds()),
-                content = encodeEntryForSync(entry)
+                content = encodeEntryForSync(entry),
             )
         }
-}
 
 internal data class DiaryEntryExportFile(
     val fileName: String,
-    val content: ByteArray
+    val content: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -84,6 +84,4 @@ internal data class DiaryEntryExportFile(
     }
 }
 
-internal expect suspend fun writeDiaryEntryExportFiles(
-    files: List<DiaryEntryExportFile>
-): DiaryEntryExportResult
+internal expect suspend fun writeDiaryEntryExportFiles(files: List<DiaryEntryExportFile>): DiaryEntryExportResult

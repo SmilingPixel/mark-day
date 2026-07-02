@@ -1,8 +1,8 @@
 package io.github.smiling_pixel.util
 
 import android.content.Intent
-import androidx.core.content.FileProvider
 import android.util.Log
+import androidx.core.content.FileProvider
 import io.github.smiling_pixel.preference.AndroidContextProvider
 import java.io.File
 import java.text.SimpleDateFormat
@@ -16,6 +16,7 @@ actual object Logger {
 
     @Volatile
     private var minLogLevel: LogLevel = LogLevel.ERROR
+
     @Volatile
     private var isPersistenceEnabled: Boolean = false
     private val lock = Any()
@@ -32,7 +33,12 @@ actual object Logger {
 
     actual fun isPersistenceEnabled(): Boolean = isPersistenceEnabled
 
-    actual fun log(level: LogLevel, tag: String, message: String, throwable: Throwable?) {
+    actual fun log(
+        level: LogLevel,
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         if (level.ordinal < minLogLevel.ordinal) return
         when (level) {
             LogLevel.DEBUG -> Log.d(tag, message, throwable)
@@ -57,20 +63,23 @@ actual object Logger {
             val exportFile = File(exportDir, timestampedExportFileName())
             exportFile.writeText(content)
 
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                exportFile
-            )
-            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "MarkDay logs")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            val chooser = Intent.createChooser(sendIntent, "Export MarkDay logs").apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val uri =
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    exportFile,
+                )
+            val sendIntent =
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "MarkDay logs")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            val chooser =
+                Intent.createChooser(sendIntent, "Export MarkDay logs").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
             context.startActivity(chooser)
 
             LogExportResult.Success(exportFile.name, "Android share sheet")
@@ -86,7 +95,12 @@ actual object Logger {
         }
     }
 
-    private fun persist(level: LogLevel, tag: String, message: String, throwable: Throwable?) {
+    private fun persist(
+        level: LogLevel,
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ) {
         try {
             synchronized(lock) {
                 val file = logFile()
@@ -110,12 +124,18 @@ actual object Logger {
         return previous + current
     }
 
-    private fun formatLine(level: LogLevel, tag: String, message: String, throwable: Throwable?): String {
-        val fullMessage = if (throwable != null) {
-            "$message\n${throwable.stackTraceToString()}"
-        } else {
-            message
-        }
+    private fun formatLine(
+        level: LogLevel,
+        tag: String,
+        message: String,
+        throwable: Throwable?,
+    ): String {
+        val fullMessage =
+            if (throwable != null) {
+                "$message\n${throwable.stackTraceToString()}"
+            } else {
+                message
+            }
         return "${timestamp()} [$level] $tag: $fullMessage\n"
     }
 

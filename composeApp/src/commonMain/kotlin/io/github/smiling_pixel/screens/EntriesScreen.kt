@@ -1,23 +1,10 @@
 package io.github.smiling_pixel.screens
 
-import io.github.smiling_pixel.model.DiaryEntry
-import io.github.smiling_pixel.client.WeatherClient
-import io.github.smiling_pixel.database.DiaryRepository
-import io.github.smiling_pixel.database.InMemoryDiaryDao
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.LocalDate
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
-
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -32,6 +19,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -39,22 +27,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Checkbox
-import androidx.compose.ui.Alignment
+import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.client.getCloudDriveClient
-import androidx.compose.runtime.DisposableEffect
+import io.github.smiling_pixel.database.DiaryRepository
+import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.sync.startAutoSync
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalTime::class)
@@ -65,7 +57,7 @@ fun EntriesScreen(
     isSelectionMode: Boolean,
     selectedIds: Set<String>,
     onSelectionModeChange: (Boolean) -> Unit,
-    onSelectionChange: (Set<String>) -> Unit
+    onSelectionChange: (Set<String>) -> Unit,
 ) {
     val entriesState by repo.entries.collectAsState()
     val scope = rememberCoroutineScope()
@@ -91,7 +83,7 @@ fun EntriesScreen(
             onDismissRequest = { syncSummary = null },
             title = { Text("Sync Summary") },
             text = { Text(syncSummary!!) },
-            confirmButton = { Button(onClick = { syncSummary = null }) { Text("OK") } }
+            confirmButton = { Button(onClick = { syncSummary = null }) { Text("OK") } },
         )
     }
 
@@ -100,7 +92,7 @@ fun EntriesScreen(
             onDismissRequest = { syncError = null },
             title = { Text("Sync Error") },
             text = { Text(syncError!!) },
-            confirmButton = { Button(onClick = { syncError = null }) { Text("OK") } }
+            confirmButton = { Button(onClick = { syncError = null }) { Text("OK") } },
         )
     }
 
@@ -109,12 +101,14 @@ fun EntriesScreen(
             isSyncing = true
             scope.launch {
                 try {
-                    val result = io.github.smiling_pixel.sync.performCloudSync(
-                        client = getCloudDriveClient(),
-                        repo = repo,
-                        localEntries = entriesState
-                    )
-                    syncSummary = "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
+                    val result =
+                        io.github.smiling_pixel.sync.performCloudSync(
+                            client = getCloudDriveClient(),
+                            repo = repo,
+                            localEntries = entriesState,
+                        )
+                    syncSummary =
+                        "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -148,7 +142,7 @@ fun EntriesScreen(
             onCancel = {
                 isCreating = false
                 selectedEntry = null
-            }
+            },
         )
     } else {
         // List view
@@ -157,11 +151,11 @@ fun EntriesScreen(
                 if (!isSelectionMode) {
                     Column(
                         horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         FloatingActionButton(
                             onClick = { performSync() },
-                            shape = RoundedCornerShape(16.dp)
+                            shape = RoundedCornerShape(16.dp),
                         ) {
                             if (isSyncing) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
@@ -171,99 +165,117 @@ fun EntriesScreen(
                         }
                         FloatingActionButton(
                             onClick = { isCreating = true },
-                            shape = RoundedCornerShape(16.dp)
+                            shape = RoundedCornerShape(16.dp),
                         ) {
                             Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
                         }
                     }
                 }
-            }
+            },
         ) { paddingValues ->
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(entriesState, key = { it.id }) { entry ->
                     val isSelected = entry.syncId in selectedIds
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(CardDefaults.shape)
-                            .combinedClickable(
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        val newSelection = if (isSelected) {
-                                            selectedIds - entry.syncId
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(CardDefaults.shape)
+                                .combinedClickable(
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            val newSelection =
+                                                if (isSelected) {
+                                                    selectedIds - entry.syncId
+                                                } else {
+                                                    selectedIds + entry.syncId
+                                                }
+                                            onSelectionChange(newSelection)
+                                            if (newSelection.isEmpty()) {
+                                                onSelectionModeChange(false)
+                                            }
                                         } else {
-                                            selectedIds + entry.syncId
+                                            selectedEntry = entry
                                         }
-                                        onSelectionChange(newSelection)
-                                        if (newSelection.isEmpty()) {
-                                            onSelectionModeChange(false)
+                                    },
+                                    onLongClick = {
+                                        if (!isSelectionMode) {
+                                            onSelectionModeChange(true)
+                                            onSelectionChange(setOf(entry.syncId))
                                         }
-                                    } else {
-                                        selectedEntry = entry
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!isSelectionMode) {
-                                        onSelectionModeChange(true)
-                                        onSelectionChange(setOf(entry.syncId))
-                                    }
-                                }
-                            ),
+                                    },
+                                ),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(16.dp),
                         ) {
                             if (isSelectionMode) {
                                 Checkbox(
                                     checked = isSelected,
-                                    onCheckedChange = null // Handled by card click
+                                    onCheckedChange = null, // Handled by card click
                                 )
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                val (displayTitle, displayContent) = remember(entry.title, entry.content) {
-                                    if (entry.title.isNotEmpty()) {
-                                        val contentPreview = if (entry.content.isNotEmpty()) {
-                                            entry.content.lineSequence().firstOrNull()?.take(60)
+                                val (displayTitle, displayContent) =
+                                    remember(entry.title, entry.content) {
+                                        if (entry.title.isNotEmpty()) {
+                                            val contentPreview =
+                                                if (entry.content.isNotEmpty()) {
+                                                    entry.content
+                                                        .lineSequence()
+                                                        .firstOrNull()
+                                                        ?.take(60)
+                                                } else {
+                                                    null
+                                                }
+                                            entry.title to contentPreview
                                         } else {
-                                            null
+                                            val firstTwoLines =
+                                                entry.content
+                                                    .lineSequence()
+                                                    .take(2)
+                                                    .toList()
+                                            val titlePreview =
+                                                if (firstTwoLines.isNotEmpty() &&
+                                                    firstTwoLines[0].isNotEmpty()
+                                                ) {
+                                                    firstTwoLines[0].take(60)
+                                                } else {
+                                                    "Untitled"
+                                                }
+                                            val contentPreview =
+                                                if (firstTwoLines.size > 1 &&
+                                                    firstTwoLines[1].isNotEmpty()
+                                                ) {
+                                                    firstTwoLines[1].take(60)
+                                                } else {
+                                                    null
+                                                }
+                                            titlePreview to contentPreview
                                         }
-                                        entry.title to contentPreview
-                                    } else {
-                                        val firstTwoLines = entry.content.lineSequence().take(2).toList()
-                                        val titlePreview = if (firstTwoLines.isNotEmpty() && firstTwoLines[0].isNotEmpty()) {
-                                            firstTwoLines[0].take(60)
-                                        } else {
-                                            "Untitled"
-                                        }
-                                        val contentPreview = if (firstTwoLines.size > 1 && firstTwoLines[1].isNotEmpty()) {
-                                            firstTwoLines[1].take(60)
-                                        } else {
-                                            null
-                                        }
-                                        titlePreview to contentPreview
                                     }
-                                }
 
                                 Text(
                                     text = displayTitle,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 if (displayContent != null) {
                                     Text(
                                         text = displayContent,
                                         style = MaterialTheme.typography.bodyMedium,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
                                 Text(
@@ -278,4 +290,3 @@ fun EntriesScreen(
         }
     }
 }
-

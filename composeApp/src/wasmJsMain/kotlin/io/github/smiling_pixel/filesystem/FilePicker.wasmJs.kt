@@ -12,31 +12,34 @@ import org.w3c.files.FileReader
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-actual class PlatformFile(val file: File)
+actual class PlatformFile(
+    val file: File,
+)
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-actual suspend fun PlatformFile.readBytes(): ByteArray = suspendCoroutine { cont ->
-    val reader = FileReader()
-    reader.onload = {
-        val buffer = reader.result as ArrayBuffer
-        val int8Array = Int8Array(buffer)
-        val bytes = ByteArray(int8Array.length)
-        for (i in 0 until int8Array.length) {
-            bytes[i] = int8Array[i]
+actual suspend fun PlatformFile.readBytes(): ByteArray =
+    suspendCoroutine { cont ->
+        val reader = FileReader()
+        reader.onload = {
+            val buffer = reader.result as ArrayBuffer
+            val int8Array = Int8Array(buffer)
+            val bytes = ByteArray(int8Array.length)
+            for (i in 0 until int8Array.length) {
+                bytes[i] = int8Array[i]
+            }
+            cont.resume(bytes)
         }
-        cont.resume(bytes)
+        reader.onerror = {
+            cont.resume(byteArrayOf())
+        }
+        reader.readAsArrayBuffer(file)
     }
-    reader.onerror = {
-        cont.resume(byteArrayOf())
-    }
-    reader.readAsArrayBuffer(file)
-}
 
 actual fun PlatformFile.name(): String = file.name
 
 @Composable
-actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher {
-    return remember {
+actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher =
+    remember {
         object : FilePickerLauncher {
             override fun launch() {
                 val input = document.createElement("input") as HTMLInputElement
@@ -46,9 +49,10 @@ actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): Fi
                 input.onchange = {
                     val filesList = input.files
                     if (filesList != null) {
-                        val files = (0 until filesList.length).map {
-                            PlatformFile(filesList.item(it)!!)
-                        }
+                        val files =
+                            (0 until filesList.length).map {
+                                PlatformFile(filesList.item(it)!!)
+                            }
                         onFilesSelected(files)
                     }
                 }
@@ -58,4 +62,3 @@ actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): Fi
             }
         }
     }
-}
