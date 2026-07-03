@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import io.github.smiling_pixel.preference.AndroidContextProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 internal actual suspend fun writeDiaryEntryExportFiles(
@@ -11,21 +13,27 @@ internal actual suspend fun writeDiaryEntryExportFiles(
 ): DiaryEntryExportResult {
     return try {
         val context = AndroidContextProvider.context
-        val exportDir = File(context.cacheDir, "entry_exports").also {
-            if (it.exists()) {
-                it.deleteRecursively()
+
+        val uris: ArrayList<Uri> = withContext(Dispatchers.IO) {
+            val exportDir = File(context.cacheDir, "entry_exports").also {
+                if (it.exists()) {
+                    it.deleteRecursively()
+                }
+                it.mkdirs()
             }
-            it.mkdirs()
-        }
-        val uris = ArrayList<Uri>()
-        for (file in files) {
-            val exportFile = File(exportDir, file.fileName)
-            exportFile.writeBytes(file.content)
-            uris += FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                exportFile
-            )
+            ArrayList<Uri>(files.size).apply {
+                for (file in files) {
+                    val exportFile = File(exportDir, file.fileName)
+                    exportFile.writeBytes(file.content)
+                    add(
+                        FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            exportFile
+                        )
+                    )
+                }
+            }
         }
 
         val sendIntent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
