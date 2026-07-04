@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.swing.JFileChooser
+import javax.swing.SwingUtilities
 
 internal actual suspend fun writeDiaryEntryExportFiles(
     files: List<DiaryEntryExportFile>
@@ -14,12 +15,24 @@ internal actual suspend fun writeDiaryEntryExportFiles(
             fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
             isAcceptAllFileFilterUsed = false
         }
-        val result = chooser.showSaveDialog(null)
-        if (result != JFileChooser.APPROVE_OPTION) {
+        var selectedDirectory: File? = null
+        var result = JFileChooser.CANCEL_OPTION
+        val showDialog = Runnable {
+            result = chooser.showSaveDialog(null)
+            if (result == JFileChooser.APPROVE_OPTION) {
+                selectedDirectory = chooser.selectedFile
+            }
+        }
+        if (SwingUtilities.isEventDispatchThread()) {
+            showDialog.run()
+        } else {
+            SwingUtilities.invokeAndWait(showDialog)
+        }
+        if (result != JFileChooser.APPROVE_OPTION || selectedDirectory == null) {
             return DiaryEntryExportResult.Failure("Diary entry export was cancelled.")
         }
 
-        val directory: File = chooser.selectedFile
+        val directory: File = selectedDirectory!!
         if (!directory.exists()) {
             directory.mkdirs()
         }
