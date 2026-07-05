@@ -8,19 +8,21 @@ import javax.swing.SwingUtilities
 
 internal actual suspend fun writeDiaryEntryExportFiles(files: List<DiaryEntryExportFile>): DiaryEntryExportResult {
     return try {
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Export MarkDay diary entries"
-            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-            isAcceptAllFileFilterUsed = false
-        }
+        val chooser =
+            JFileChooser().apply {
+                dialogTitle = "Export MarkDay diary entries"
+                fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+                isAcceptAllFileFilterUsed = false
+            }
         var selectedDirectory: File? = null
         var result = JFileChooser.CANCEL_OPTION
-        val showDialog = Runnable {
-            result = chooser.showSaveDialog(null)
-            if (result == JFileChooser.APPROVE_OPTION) {
-                selectedDirectory = chooser.selectedFile
+        val showDialog =
+            Runnable {
+                result = chooser.showSaveDialog(null)
+                if (result == JFileChooser.APPROVE_OPTION) {
+                    selectedDirectory = chooser.selectedFile
+                }
             }
-        }
         if (SwingUtilities.isEventDispatchThread()) {
             showDialog.run()
         } else {

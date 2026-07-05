@@ -12,27 +12,29 @@ internal actual suspend fun writeDiaryEntryExportFiles(files: List<DiaryEntryExp
     try {
         val context = AndroidContextProvider.context
 
-        val uris: ArrayList<Uri> = withContext(Dispatchers.IO) {
-            val exportDir = File(context.cacheDir, "entry_exports").also {
-                if (it.exists()) {
-                    it.deleteRecursively()
-                }
-                it.mkdirs()
-            }
-            ArrayList<Uri>(files.size).apply {
-                for (file in files) {
-                    val exportFile = File(exportDir, file.fileName)
-                    exportFile.writeBytes(file.content)
-                    add(
-                        FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.fileprovider",
-                            exportFile
+        val uris: ArrayList<Uri> =
+            withContext(Dispatchers.IO) {
+                val exportDir =
+                    File(context.cacheDir, "entry_exports").also {
+                        if (it.exists()) {
+                            it.deleteRecursively()
+                        }
+                        it.mkdirs()
+                    }
+                ArrayList<Uri>(files.size).apply {
+                    for (file in files) {
+                        val exportFile = File(exportDir, file.fileName)
+                        exportFile.writeBytes(file.content)
+                        add(
+                            FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                exportFile,
+                            ),
                         )
-                    )
+                    }
                 }
             }
-        }
 
         val sendIntent =
             Intent(Intent.ACTION_SEND_MULTIPLE).apply {
