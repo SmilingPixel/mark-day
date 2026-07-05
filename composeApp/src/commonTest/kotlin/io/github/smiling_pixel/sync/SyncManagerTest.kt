@@ -37,7 +37,7 @@ class SyncManagerTest {
         )
 
         val dao = InMemoryDiaryDao(initial = listOf(localEntry))
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
 
         val client = FakeCloudDriveClient(authorized = true)
         val oldRemote = diaryEntry(
@@ -80,7 +80,7 @@ class SyncManagerTest {
         )
 
         val dao = InMemoryDiaryDao(initial = listOf(localEntry))
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
 
         val client = FakeCloudDriveClient(authorized = true)
         client.seedFile(
@@ -115,7 +115,7 @@ class SyncManagerTest {
             updatedAtMs = 1_000,
         )
         val dao = InMemoryDiaryDao(initial = listOf(localEntry))
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
 
         val remoteNew = diaryEntry(
             syncId = syncId,
@@ -153,7 +153,7 @@ class SyncManagerTest {
         )
 
         val dao = InMemoryDiaryDao()
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
         val client = FakeCloudDriveClient(authorized = true)
         client.seedFile(
             name = remoteEntryFileName(syncId, 4_000),
@@ -184,7 +184,7 @@ class SyncManagerTest {
         )
 
         val dao = InMemoryDiaryDao(initial = listOf(localEntry))
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
         repo.delete(localEntry)
         recordLocalDeletionTombstone(syncId = syncId, deletedAtEpochMillis = 2_000, settings = settings)
 
@@ -219,7 +219,7 @@ class SyncManagerTest {
             updatedAtMs = 2_000,
         )
         val dao = InMemoryDiaryDao(initial = listOf(localEntry))
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
 
         val client = FakeCloudDriveClient(authorized = true)
         client.seedFile(
@@ -255,7 +255,7 @@ class SyncManagerTest {
         )
 
         val dao = InMemoryDiaryDao(initial = listOf(localEntry))
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
 
         val client = FakeCloudDriveClient(authorized = true)
         val oldName = remoteEntryFileName(syncId, 1_000)
@@ -279,7 +279,7 @@ class SyncManagerTest {
         configureSyncSettings(settings, enabled = true, path = "/")
 
         val dao = InMemoryDiaryDao()
-        val repo = DiaryRepository(dao)
+        val repo = DiaryRepository(dao, settings = settings)
         val client = FakeCloudDriveClient(authorized = false)
 
         assertFailsWith<Exception> {

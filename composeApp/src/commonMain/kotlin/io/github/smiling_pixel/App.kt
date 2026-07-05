@@ -238,7 +238,7 @@ fun App(
                         InsightsScreen()
                     }
                     composable<SettingsRoute> {
-                        SettingsScreen()
+                        SettingsScreen(repo = repo)
                     }
                     composable<ProfileRoute> { backStackEntry ->
                         ProfileScreen(onBack = {

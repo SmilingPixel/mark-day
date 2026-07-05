@@ -3,6 +3,7 @@ package io.github.smiling_pixel.filesystem
 import coil3.Uri
 import coil3.decode.DataSource
 import coil3.fetch.SourceFetchResult
+import coil3.toUri
 import kotlinx.coroutines.test.runTest
 import okio.IOException
 import kotlin.test.Test
@@ -47,12 +48,8 @@ class LocalFileFetcherTest {
         val fileManager = InMemoryFileManager()
         val factory = LocalFileFetcher.Factory(fileManager)
         
-        val fetcher = factory.createForUri(Uri("localfile:///image.jpg"))
+        val fetcher = factory.createForUri("localfile:///image.jpg".toUri())
         assertNotNull(fetcher)
-        
-        // Factory should trim the leading slash
-        val fetcher2 = factory.createForUri(Uri("localfile:image.jpg"))
-        assertNotNull(fetcher2)
     }
 
     @Test
@@ -60,7 +57,7 @@ class LocalFileFetcherTest {
         val fileManager = InMemoryFileManager()
         val factory = LocalFileFetcher.Factory(fileManager)
 
-        val fetcher = factory.createForUri(Uri("https://example.com/image.jpg"))
+        val fetcher = factory.createForUri("https://example.com/image.jpg".toUri())
         assertNull(fetcher)
     }
 
@@ -69,12 +66,25 @@ class LocalFileFetcherTest {
         val fileManager = InMemoryFileManager()
         val factory = LocalFileFetcher.Factory(fileManager)
 
-        // Traversal path
-        val fetcher = factory.createForUri(Uri("localfile://../image.jpg"))
+        val fetcher = factory.createForUri("localfile:///../image.jpg".toUri())
         assertNull(fetcher)
-        
-        // Empty path
-        val fetcher2 = factory.createForUri(Uri("localfile:"))
-        assertNull(fetcher2)
+    }
+
+    @Test
+    fun testFactoryRejectsNonCanonicalLocalFileUri() {
+        val fileManager = InMemoryFileManager()
+        val factory = LocalFileFetcher.Factory(fileManager)
+
+        val opaqueUriFetcher = factory.createForUri("localfile:image.jpg".toUri())
+        assertNull(opaqueUriFetcher)
+
+        val authorityUriFetcher = factory.createForUri("localfile://image.jpg".toUri())
+        assertNull(authorityUriFetcher)
+
+        val emptyPathFetcher = factory.createForUri("localfile:".toUri())
+        assertNull(emptyPathFetcher)
+
+        val nestedPathFetcher = factory.createForUri("localfile:///images/image.jpg".toUri())
+        assertNull(nestedPathFetcher)
     }
 }

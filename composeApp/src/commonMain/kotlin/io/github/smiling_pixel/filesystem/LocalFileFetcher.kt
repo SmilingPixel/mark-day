@@ -25,7 +25,7 @@ class LocalFileFetcher(
     override suspend fun fetch(): FetchResult? {
         val bytes = fileManager.read(fileName) ?: run {
             val errorMessage = "LocalFileFetcher: File not found: $fileName"
-            Logger.e("LocalFileFetcher", errorMessage)
+            runCatching { Logger.e("LocalFileFetcher", errorMessage) }
             // Returning null here would let Coil try other fetchers, but since we handle 
             // the 'localfile' scheme, no other fetcher is expected to succeed.
             // Throwing an exception provides a more informative error result.
@@ -43,13 +43,10 @@ class LocalFileFetcher(
     /**
      * Factory for creating [LocalFileFetcher] instances for URIs with the `localfile` scheme.
      *
-     * Expected formats include:
-     * - `localfile:image.jpg`
-     * - `localfile:/image.jpg`
-     * - `localfile:///image.jpg`
+     * Expected format: `localfile:///image.jpg`.
      *
-     * In all cases, [Uri.path] is used and any leading '/' characters are trimmed before
-     * being passed to [FileManager]. Only the `localfile` scheme is recognized here.
+     * Only legal hierarchical URIs with the `localfile` scheme, no authority, and a single path segment are
+     * recognized here. The parsed URI path is passed to [FileManager].
      */
     class Factory(private val fileManager: FileManager) : Fetcher.Factory<Uri> {
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
@@ -57,22 +54,37 @@ class LocalFileFetcher(
         }
 
         internal fun createForUri(data: Uri): Fetcher? {
-            if (data.scheme == "localfile") {
-                // data.path might start with /, e.g. /image.jpg
-                val fileName = data.path?.trimStart('/') ?: run {
-                    Logger.w("LocalFileFetcher", "Empty path in URI: $data")
-                    return null
-                }
-
-                // Reject potentially unsafe paths to prevent directory traversal.
-                // This ensures inputs like "../secret.png" or "a/../../etc/passwd" are not used.
-                if (fileName.isEmpty() || fileName.contains("..")) {
-                    Logger.w("LocalFileFetcher", "Rejected potentially unsafe or empty path: $fileName")
-                    return null
-                }
-                return LocalFileFetcher(fileName, fileManager)
+            if (data.scheme != LOCAL_FILE_SCHEME) {
+                return null
             }
-            return null
+
+            if (!data.authority.isNullOrEmpty()) {
+                Logger.w("LocalFileFetcher", "Rejected localfile URI with authority: $data")
+                return null
+            }
+
+            val fileName = localFileName(data.path) ?: run {
+                Logger.w("LocalFileFetcher", "Expected exactly one path segment in URI: $data")
+                return null
+            }
+
+            // Reject potentially unsafe paths to prevent directory traversal.
+            if (fileName.contains("..")) {
+                Logger.w("LocalFileFetcher", "Rejected potentially unsafe path: $fileName")
+                return null
+            }
+            return LocalFileFetcher(fileName, fileManager)
+        }
+
+        private fun localFileName(path: String?): String? {
+            if (path == null || !path.startsWith("/") || path.indexOf('/', startIndex = 1) != -1) {
+                return null
+            }
+            return path.removePrefix("/").takeIf { it.isNotEmpty() }
+        }
+
+        private companion object {
+            const val LOCAL_FILE_SCHEME = "localfile"
         }
     }
 }

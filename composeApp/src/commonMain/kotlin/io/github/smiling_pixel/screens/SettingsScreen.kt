@@ -44,8 +44,11 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
 import io.github.smiling_pixel.client.UserInfo
 import io.github.smiling_pixel.client.getCloudDriveClient
+import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.getPlatform
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.sync.DiaryEntryExportResult
+import io.github.smiling_pixel.sync.exportDiaryEntries
 import io.github.smiling_pixel.util.LogExportResult
 import io.github.smiling_pixel.util.LogLevel
 import io.github.smiling_pixel.util.Logger
@@ -53,7 +56,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(repo: DiaryRepository) {
     val scope = rememberCoroutineScope()
     // Remember the settings repository so recomposition does not recreate a new DataStore-backed
     // repository instance and resubscribe all mapped flows unnecessarily.
@@ -460,6 +463,24 @@ fun SettingsScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        diagnosticsMessage = when (val result = exportDiaryEntries(repo.entries.value)) {
+                            is DiaryEntryExportResult.Success -> {
+                                "Exported ${result.fileCount} diary entries to ${result.destinationDescription}."
+                            }
+                            DiaryEntryExportResult.NoEntries -> "No diary entries to export."
+                            DiaryEntryExportResult.Unavailable -> {
+                                "Diary entry export is unavailable on this platform."
+                            }
+                            is DiaryEntryExportResult.Failure -> result.message
+                        }
+                    }
+                }
+            ) {
+                Text("Export Diary Entries")
+            }
             Button(
                 onClick = {
                     scope.launch {

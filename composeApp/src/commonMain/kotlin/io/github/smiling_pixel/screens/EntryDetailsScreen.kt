@@ -314,7 +314,7 @@ fun EntryDetailsScreen(
             LaunchedEffect(entry!!.content) {
                 var count = 0
                 var size = 0L
-                val regex = Regex("localfile:/*([^)\\s]+)")
+                val regex = Regex("localfile:///([^)/\\s]+)")
                 val matches = regex.findAll(entry.content)
                 for (match in matches) {
                     val filePath = match.groupValues[1]
