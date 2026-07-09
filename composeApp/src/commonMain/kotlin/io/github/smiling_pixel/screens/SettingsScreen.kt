@@ -51,7 +51,6 @@ import io.github.smiling_pixel.filesystem.name
 import io.github.smiling_pixel.filesystem.readBytes
 import io.github.smiling_pixel.filesystem.rememberFilePicker
 import io.github.smiling_pixel.getPlatform
-import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.sync.DiaryEntryExportResult
 import io.github.smiling_pixel.sync.DiaryEntryImportFile
@@ -59,14 +58,11 @@ import io.github.smiling_pixel.sync.DiaryEntryImportPreview
 import io.github.smiling_pixel.sync.DiaryEntryImportResult
 import io.github.smiling_pixel.sync.applyDiaryEntryImport
 import io.github.smiling_pixel.sync.exportDiaryEntries
-import io.github.smiling_pixel.sync.performCloudSync
 import io.github.smiling_pixel.sync.previewDiaryEntryImport
 import io.github.smiling_pixel.util.LogExportResult
 import io.github.smiling_pixel.util.LogLevel
 import io.github.smiling_pixel.util.Logger
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -109,33 +105,13 @@ fun SettingsScreen(repo: DiaryRepository) {
         overrideConflicts: Boolean,
     ) {
         val result = applyDiaryEntryImport(preview, repo, overrideConflicts)
-        // DiaryRepository writes to the DAO first, then its StateFlow is refreshed by a separate
-        // entriesFlow collector. Build the exact entries changed by this import so post-import sync
-        // can wait for those changes instead of racing against a potentially stale repo.entries.value.
-        val changedEntries =
-            preview.newEntries +
-                if (overrideConflicts) {
-                    preview.conflicts.map { it.importedEntry }
-                } else {
-                    emptyList()
-                }
+        // Import intentionally mirrors normal in-app save: it writes local data and lets manual or
+        // auto sync run later. If immediate post-import sync is added in the future, do not pass
+        // repo.entries.value directly right after insert/update. DiaryRepository refreshes that
+        // StateFlow from the DAO asynchronously, so it can briefly contain a pre-import snapshot.
         diagnosticsMessage =
             buildImportDiagnosticsMessage(
                 result = result,
-                syncMessage =
-                    runSyncAfterImport(
-                        changedEntries = changedEntries,
-                        isCloudSyncEnabled = isCloudSyncEnabled,
-                        isAuthorized = isAuthorized,
-                        repo = repo,
-                        sync = { localEntries ->
-                            performCloudSync(
-                                client = cloudDriveClient,
-                                repo = repo,
-                                localEntries = localEntries,
-                            )
-                        },
-                    ),
             )
     }
 
@@ -699,85 +675,9 @@ fun SettingsScreen(repo: DiaryRepository) {
     }
 }
 
-/**
- * Runs cloud sync after import using local entries that include the just-applied import changes.
- *
- * The repository's public [DiaryRepository.entries] value is a StateFlow updated asynchronously from
- * the DAO. Immediately reading it after [applyDiaryEntryImport] can miss newly inserted entries or
- * still contain the pre-override version of a conflicting entry. To avoid syncing stale data, this
- * function waits briefly until the expected imported sync IDs and update timestamps are visible, then
- * falls back to a merged snapshot if the repository flow has not caught up yet.
- */
-private suspend fun runSyncAfterImport(
-    changedEntries: List<DiaryEntry>,
-    isCloudSyncEnabled: Boolean,
-    isAuthorized: Boolean,
-    repo: DiaryRepository,
-    sync: suspend (List<DiaryEntry>) -> io.github.smiling_pixel.sync.SyncResult,
-): String {
-    if (changedEntries.isEmpty()) {
-        return "Cloud sync skipped because no entries changed."
-    }
-    if (!isCloudSyncEnabled) {
-        return "Cloud sync skipped because cloud sync is disabled."
-    }
-    if (!isAuthorized) {
-        return "Cloud sync skipped because Google Drive is not authorized."
-    }
-
-    return try {
-        val localEntries = awaitLocalEntriesAfterImport(repo, changedEntries)
-        val result = sync(localEntries)
-        "Cloud sync completed. Uploaded: ${result.uploaded}; Downloaded: ${result.downloaded}; Unchanged: ${result.unchanged}."
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        "Cloud sync failed after import: ${e.message ?: "unknown error"}."
-    }
-}
-
-/**
- * Waits for repository state to reflect imported entries before cloud sync reads local state.
- */
-private suspend fun awaitLocalEntriesAfterImport(
-    repo: DiaryRepository,
-    changedEntries: List<DiaryEntry>,
-): List<DiaryEntry> {
-    val expectedBySyncId = changedEntries.associateBy { it.syncId }
-    return withTimeoutOrNull(2_000) {
-        repo.entries.first { entries ->
-            expectedBySyncId.all { (syncId, expected) ->
-                entries.any { entry -> entry.syncId == syncId && entry.updatedAt == expected.updatedAt }
-            }
-        }
-    } ?: mergeChangedEntries(repo.entries.value, changedEntries)
-}
-
-/**
- * Merges imported entries into the latest repository snapshot when the repository flow lags.
- */
-private fun mergeChangedEntries(
-    localEntries: List<DiaryEntry>,
-    changedEntries: List<DiaryEntry>,
-): List<DiaryEntry> {
-    val changedBySyncId = changedEntries.associateBy { it.syncId }
-    val merged =
-        localEntries.map { local ->
-            val changed = changedBySyncId[local.syncId]
-            if (changed == null) {
-                local
-            } else {
-                changed.copy(id = local.id)
-            }
-        }
-    val existingSyncIds = localEntries.mapTo(mutableSetOf()) { it.syncId }
-    return merged + changedEntries.filter { it.syncId !in existingSyncIds }
-}
-
 private fun buildImportDiagnosticsMessage(
     result: DiaryEntryImportResult,
-    syncMessage: String,
 ): String =
     "Import complete. Inserted: ${result.inserted}; Updated: ${result.updated}; " +
         "Skipped conflicts: ${result.skippedConflicts}; Ignored invalid files: ${result.ignoredInvalidFiles}; " +
-        "Skipped duplicate files: ${result.skippedDuplicateFiles}. $syncMessage"
+        "Skipped duplicate files: ${result.skippedDuplicateFiles}."
