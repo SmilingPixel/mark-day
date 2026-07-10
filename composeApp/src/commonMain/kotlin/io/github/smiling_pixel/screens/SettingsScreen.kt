@@ -58,6 +58,7 @@ import io.github.smiling_pixel.sync.DiaryEntryImportPreview
 import io.github.smiling_pixel.sync.DiaryEntryImportResult
 import io.github.smiling_pixel.sync.applyDiaryEntryImport
 import io.github.smiling_pixel.sync.exportDiaryEntries
+import io.github.smiling_pixel.sync.isDiaryEntryImportAvailable
 import io.github.smiling_pixel.sync.previewDiaryEntryImport
 import io.github.smiling_pixel.util.LogExportResult
 import io.github.smiling_pixel.util.LogLevel
@@ -86,10 +87,7 @@ fun SettingsScreen(repo: DiaryRepository) {
     val isLogPersistenceEnabled by settingsRepository.isLogPersistenceEnabled.collectAsState(initial = false)
     val platform = remember { getPlatform() }
     val isWebTrial = platform.name.contains("Web", ignoreCase = true)
-    val isDiaryImportAvailable =
-        remember(platform.name) {
-            platform.name.contains("Android", ignoreCase = true) || platform.name.contains("Java", ignoreCase = true)
-        }
+    val isDiaryImportAvailable = remember { isDiaryEntryImportAvailable() }
 
     val cloudDriveClient = remember { getCloudDriveClient() }
     var userInfo by remember { mutableStateOf<UserInfo?>(null) }
@@ -675,9 +673,7 @@ fun SettingsScreen(repo: DiaryRepository) {
     }
 }
 
-private fun buildImportDiagnosticsMessage(
-    result: DiaryEntryImportResult,
-): String =
+private fun buildImportDiagnosticsMessage(result: DiaryEntryImportResult): String =
     "Import complete. Inserted: ${result.inserted}; Updated: ${result.updated}; " +
         "Skipped conflicts: ${result.skippedConflicts}; Ignored invalid files: ${result.ignoredInvalidFiles}; " +
         "Skipped duplicate files: ${result.skippedDuplicateFiles}."
