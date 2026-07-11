@@ -9,6 +9,23 @@ MarkDay is a cross-platform diary and journaling application built with **Kotlin
 - **Local Storage:** Fast and reliable text storage utilizing Room Multiplatform (SQLite) on Android, Desktop, and iOS. Web (Wasm) uses in-memory storage with browser localStorage for preferences.
 - **Rich Content:** Support for rich text and image rendering (via multiplatform-markdown-renderer and Coil).
 - **Sync & Backup (Android/Desktop JVM only):** Google Drive integration for seamless data backups and remote sync. Web (Wasm) support is not implemented yet.
+- **Diary Import/Export:** Export diary entries as sync-compatible local text files and import them later to restore backed-up entries.
+
+## Diary Import and Export
+
+Diary entry export and import are available from **Settings > Diagnostics**.
+
+- **Export Diary Entries** writes one sync-compatible `.txt` file per diary entry.
+- **Import Diary Entries** reads MarkDay diary entry files from local storage and restores them into the app.
+- Import is available on **Android** and **Desktop (JVM)**. Web (Wasm) and iOS currently report diary import as unavailable.
+- If an imported entry has the same sync identifier as an existing local entry, MarkDay asks whether to override all conflicts or skip conflicting imports.
+- Import follows the same local-first behavior as normal in-app saving: imported entries are written locally, and regular manual or auto cloud sync can run afterward. Import does not force an immediate cloud sync.
+
+Imported files use the same JSON payload format and file naming convention produced by diary export and Google Drive sync, such as:
+
+```text
+markday_entry_<syncId>_<updatedAtEpochMillis>.txt
+```
 
 ## Project Structure
 
