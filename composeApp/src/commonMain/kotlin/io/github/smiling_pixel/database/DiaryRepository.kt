@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 class DiaryRepository(
     private val dao: IDiaryDao,
     scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
-    private val settings: SettingsRepository = getSettingsRepository()
+    private val settings: SettingsRepository = getSettingsRepository(),
 ) {
     private val _entries = MutableStateFlow<List<DiaryEntry>>(emptyList())
     val entries: StateFlow<List<DiaryEntry>> = _entries
@@ -48,7 +48,10 @@ class DiaryRepository(
         dao.update(entry)
     }
 
-    suspend fun delete(entry: DiaryEntry, recordSyncTombstone: Boolean = true) {
+    suspend fun delete(
+        entry: DiaryEntry,
+        recordSyncTombstone: Boolean = true,
+    ) {
         if (recordSyncTombstone) {
             recordLocalDeletionTombstone(entry.syncId, settings = settings)
         }

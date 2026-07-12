@@ -34,5 +34,9 @@ interface WeatherClient {
      * @param end The end time of the history range.
      * @return A list of hourly weather info.
      */
-    suspend fun getHourlyHistory(location: Location, start: Instant, end: Instant): List<IntervalWeatherInfo>
+    suspend fun getHourlyHistory(
+        location: Location,
+        start: Instant,
+        end: Instant,
+    ): List<IntervalWeatherInfo>
 }

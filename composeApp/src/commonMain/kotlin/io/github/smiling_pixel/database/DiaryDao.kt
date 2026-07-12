@@ -8,8 +8,12 @@ import kotlinx.coroutines.flow.Flow
 // so UI can observe changes automatically.
 interface IDiaryDao {
     val entriesFlow: Flow<List<DiaryEntry>>
+
     suspend fun getAll(): List<DiaryEntry>
+
     suspend fun insert(entry: DiaryEntry): Int
+
     suspend fun update(entry: DiaryEntry)
+
     suspend fun delete(entry: DiaryEntry)
 }

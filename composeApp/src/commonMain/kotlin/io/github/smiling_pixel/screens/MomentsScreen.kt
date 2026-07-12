@@ -21,74 +21,76 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import io.github.smiling_pixel.filesystem.FileRepository
+import io.github.smiling_pixel.filesystem.name
+import io.github.smiling_pixel.filesystem.readBytes
+import io.github.smiling_pixel.filesystem.rememberFilePicker
 import io.github.smiling_pixel.model.FileMetadata
-import kotlin.time.Instant
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.rememberCoroutineScope
-import io.github.smiling_pixel.filesystem.rememberFilePicker
-import io.github.smiling_pixel.filesystem.readBytes
-import io.github.smiling_pixel.filesystem.name
-import kotlinx.coroutines.launch
+import kotlin.time.Instant
 
 @Composable
 fun MomentsScreen(fileRepo: FileRepository) {
     val files by fileRepo.files.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
-    val picker = rememberFilePicker { platformFiles ->
-        scope.launch {
-            platformFiles.forEach { file ->
-                val bytes = file.readBytes()
-                fileRepo.saveFile(file.name(), bytes)
+    val picker =
+        rememberFilePicker { platformFiles ->
+            scope.launch {
+                platformFiles.forEach { file ->
+                    val bytes = file.readBytes()
+                    fileRepo.saveFile(file.name(), bytes)
+                }
             }
         }
-    }
 
-    val groupedFiles = remember(files) {
-        files.sortedByDescending { it.createdAt }
-            .groupBy { it.createdAt.toMonthYear() }
-    }
+    val groupedFiles =
+        remember(files) {
+            files
+                .sortedByDescending { it.createdAt }
+                .groupBy { it.createdAt.toMonthYear() }
+        }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { picker.launch() },
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Upload Files")
             }
-        }
+        },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(groupedFiles.keys.toList()) { month ->
                 MomentSection(
                     month = month,
-                    files = groupedFiles[month] ?: emptyList()
+                    files = groupedFiles[month] ?: emptyList(),
                 )
             }
         }
@@ -97,35 +99,39 @@ fun MomentsScreen(fileRepo: FileRepository) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MomentSection(month: String, files: List<FileMetadata>) {
+fun MomentSection(
+    month: String,
+    files: List<FileMetadata>,
+) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = month,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "${files.size} files",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (expanded) "Collapse" else "Expand"
+                        contentDescription = if (expanded) "Collapse" else "Expand",
                     )
                 }
             }
@@ -147,15 +153,16 @@ fun MomentSection(month: String, files: List<FileMetadata>) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        maxItemsInEachRow = 4
+                        maxItemsInEachRow = 4,
                     ) {
                         files.forEach { file ->
                             // Calculate width based on available space roughly, or fixed size
                             // For FlowRow, fixed size is easier
                             MomentThumbnail(
                                 file = file,
-                                modifier = Modifier
-                                    .size(80.dp) // Slightly larger in grid
+                                modifier =
+                                    Modifier
+                                        .size(80.dp), // Slightly larger in grid
                             )
                         }
                     }
@@ -166,20 +173,24 @@ fun MomentSection(month: String, files: List<FileMetadata>) {
 }
 
 @Composable
-fun MomentThumbnail(file: FileMetadata, modifier: Modifier = Modifier) {
+fun MomentThumbnail(
+    file: FileMetadata,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
     ) {
-        // Placeholder for now. 
+        // Placeholder for now.
         // In real app, we would load image or show file type icon.
         Text(
             text = file.originalFileName.take(3).uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

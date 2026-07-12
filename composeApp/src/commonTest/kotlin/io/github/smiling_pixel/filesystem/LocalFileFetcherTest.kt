@@ -1,6 +1,5 @@
 package io.github.smiling_pixel.filesystem
 
-import coil3.Uri
 import coil3.decode.DataSource
 import coil3.fetch.SourceFetchResult
 import coil3.toUri
@@ -14,40 +13,41 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LocalFileFetcherTest {
-
     @Test
-    fun testFetchSuccess() = runTest {
-        val fileManager = InMemoryFileManager()
-        val content = "Image Data".encodeToByteArray()
-        fileManager.save("image.jpg", content)
+    fun testFetchSuccess() =
+        runTest {
+            val fileManager = InMemoryFileManager()
+            val content = "Image Data".encodeToByteArray()
+            fileManager.save("image.jpg", content)
 
-        val fetcher = LocalFileFetcher("image.jpg", fileManager)
-        val result = fetcher.fetch()
+            val fetcher = LocalFileFetcher("image.jpg", fileManager)
+            val result = fetcher.fetch()
 
-        assertTrue(result is SourceFetchResult)
-        assertEquals(DataSource.DISK, result.dataSource)
-        // Consume the source to verify its content
-        val buffer = okio.Buffer()
-        result.source.source().readAll(buffer)
-        assertEquals("Image Data", buffer.readUtf8())
-    }
-
-    @Test
-    fun testFetchFailure() = runTest {
-        val fileManager = InMemoryFileManager()
-
-        val fetcher = LocalFileFetcher("image.jpg", fileManager)
-        
-        assertFailsWith<IOException> {
-            fetcher.fetch()
+            assertTrue(result is SourceFetchResult)
+            assertEquals(DataSource.DISK, result.dataSource)
+            // Consume the source to verify its content
+            val buffer = okio.Buffer()
+            result.source.source().readAll(buffer)
+            assertEquals("Image Data", buffer.readUtf8())
         }
-    }
+
+    @Test
+    fun testFetchFailure() =
+        runTest {
+            val fileManager = InMemoryFileManager()
+
+            val fetcher = LocalFileFetcher("image.jpg", fileManager)
+
+            assertFailsWith<IOException> {
+                fetcher.fetch()
+            }
+        }
 
     @Test
     fun testFactoryCreateWithValidUri() {
         val fileManager = InMemoryFileManager()
         val factory = LocalFileFetcher.Factory(fileManager)
-        
+
         val fetcher = factory.createForUri("localfile:///image.jpg".toUri())
         assertNotNull(fetcher)
     }

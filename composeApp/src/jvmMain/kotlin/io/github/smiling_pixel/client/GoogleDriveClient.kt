@@ -40,9 +40,8 @@ import java.io.File as JavaFile
  * 4. Place it in `composeApp/src/jvmMain/resources/`.
  */
 class GoogleDriveClient : CloudDriveClient {
-
     private val jsonFactory = GsonFactory.getDefaultInstance()
-    
+
     private val applicationName = APPLICATION_NAME
 
     companion object {
@@ -71,20 +70,25 @@ class GoogleDriveClient : CloudDriveClient {
     private val scopes = listOf(DriveScopes.DRIVE_FILE)
 
     private fun getFlow(httpTransport: NetHttpTransport): GoogleAuthorizationCodeFlow {
-        val inputStream = GoogleDriveClient::class.java.getResourceAsStream(CREDENTIALS_FILE_PATH)
-            ?: throw FileNotFoundException(
-                "Resource not found: $CREDENTIALS_FILE_PATH. " +
-                "Please obtain credentials.json from Google Cloud Console and place it in src/jvmMain/resources."
-            )
-        
-        val clientSecrets = InputStreamReader(inputStream).use { reader ->
-            GoogleClientSecrets.load(jsonFactory, reader)
-        }
+        val inputStream =
+            GoogleDriveClient::class.java.getResourceAsStream(CREDENTIALS_FILE_PATH)
+                ?: throw FileNotFoundException(
+                    "Resource not found: $CREDENTIALS_FILE_PATH. " +
+                        "Please obtain credentials.json from Google Cloud Console and place it in src/jvmMain/resources.",
+                )
 
-        return GoogleAuthorizationCodeFlow.Builder(
-            httpTransport, jsonFactory, clientSecrets, scopes
-        )
-            .setDataStoreFactory(FileDataStoreFactory(JavaFile(TOKENS_DIRECTORY_PATH)))
+        val clientSecrets =
+            InputStreamReader(inputStream).use { reader ->
+                GoogleClientSecrets.load(jsonFactory, reader)
+            }
+
+        return GoogleAuthorizationCodeFlow
+            .Builder(
+                httpTransport,
+                jsonFactory,
+                clientSecrets,
+                scopes,
+            ).setDataStoreFactory(FileDataStoreFactory(JavaFile(TOKENS_DIRECTORY_PATH)))
             .setAccessType("offline")
             .build()
     }
@@ -99,7 +103,7 @@ class GoogleDriveClient : CloudDriveClient {
 
     @Volatile
     private var driveServiceCache: Drive? = null
-    
+
     private fun getDriveService(): Drive {
         val cached = driveServiceCache
         if (cached != null) return cached
@@ -111,184 +115,236 @@ class GoogleDriveClient : CloudDriveClient {
             } else {
                 val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
                 val credential = getCredentials(httpTransport)
-                val newService = Drive.Builder(httpTransport, jsonFactory, credential)
-                    .setApplicationName(applicationName)
-                    .build()
+                val newService =
+                    Drive
+                        .Builder(httpTransport, jsonFactory, credential)
+                        .setApplicationName(applicationName)
+                        .build()
                 driveServiceCache = newService
                 newService
             }
         }
     }
 
-    override suspend fun listFiles(parentId: String?): List<DriveFile> = withContext(Dispatchers.IO) {
-        val folderId = parentId ?: "root"
-        // Sanitize folderId to prevent injection
-        val sanitizedFolderId = folderId.replace("'", "\\'")
-        val query = "'$sanitizedFolderId' in parents and trashed = false"
-        
-        val result = getDriveService().files().list()
-            .setQ(query)
-            .setFields("nextPageToken, files(id, name, mimeType)")
-            .execute()
-            
-        result.files?.map { file ->
+    override suspend fun listFiles(parentId: String?): List<DriveFile> =
+        withContext(Dispatchers.IO) {
+            val folderId = parentId ?: "root"
+            // Sanitize folderId to prevent injection
+            val sanitizedFolderId = folderId.replace("'", "\\'")
+            val query = "'$sanitizedFolderId' in parents and trashed = false"
+
+            val result =
+                getDriveService()
+                    .files()
+                    .list()
+                    .setQ(query)
+                    .setFields("nextPageToken, files(id, name, mimeType)")
+                    .execute()
+
+            result.files?.map { file ->
+                DriveFile(
+                    id = file.id,
+                    name = file.name,
+                    mimeType = file.mimeType,
+                    isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER,
+                )
+            } ?: emptyList()
+        }
+
+    override suspend fun createFile(
+        name: String,
+        content: ByteArray,
+        mimeType: String,
+        parentId: String?,
+    ): DriveFile =
+        withContext(Dispatchers.IO) {
+            val fileMetadata =
+                File().apply {
+                    this.name = name
+                    this.mimeType = mimeType
+                    if (parentId != null) {
+                        this.parents = listOf(parentId)
+                    }
+                }
+
+            val mediaContent = ByteArrayContent(mimeType, content)
+
+            val file =
+                getDriveService()
+                    .files()
+                    .create(fileMetadata, mediaContent)
+                    .setFields("id, name, mimeType, parents")
+                    .execute()
+
             DriveFile(
                 id = file.id,
                 name = file.name,
                 mimeType = file.mimeType,
-                isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
+                isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER,
             )
-        } ?: emptyList()
-    }
-
-    override suspend fun createFile(name: String, content: ByteArray, mimeType: String, parentId: String?): DriveFile = withContext(Dispatchers.IO) {
-        val fileMetadata = File().apply {
-            this.name = name
-            this.mimeType = mimeType
-            if (parentId != null) {
-                this.parents = listOf(parentId)
-            }
         }
-        
-        val mediaContent = ByteArrayContent(mimeType, content)
-        
-        val file = getDriveService().files().create(fileMetadata, mediaContent)
-            .setFields("id, name, mimeType, parents")
-            .execute()
-            
-        DriveFile(
-            id = file.id,
-            name = file.name,
-            mimeType = file.mimeType,
-            isFolder = file.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
-        )
-    }
 
-    override suspend fun createFolder(name: String, parentId: String?): DriveFile = withContext(Dispatchers.IO) {
-        val fileMetadata = File().apply {
-            this.name = name
-            this.mimeType = CloudDriveClient.MIME_TYPE_FOLDER
-            if (parentId != null) {
-                this.parents = listOf(parentId)
-            }
+    override suspend fun createFolder(
+        name: String,
+        parentId: String?,
+    ): DriveFile =
+        withContext(Dispatchers.IO) {
+            val fileMetadata =
+                File().apply {
+                    this.name = name
+                    this.mimeType = CloudDriveClient.MIME_TYPE_FOLDER
+                    if (parentId != null) {
+                        this.parents = listOf(parentId)
+                    }
+                }
+
+            val file =
+                getDriveService()
+                    .files()
+                    .create(fileMetadata)
+                    .setFields("id, name, mimeType")
+                    .execute()
+
+            DriveFile(
+                id = file.id,
+                name = file.name,
+                mimeType = CloudDriveClient.MIME_TYPE_FOLDER,
+                isFolder = true,
+            )
         }
-        
-        val file = getDriveService().files().create(fileMetadata)
-            .setFields("id, name, mimeType")
-            .execute()
-            
-        DriveFile(
-            id = file.id,
-            name = file.name,
-            mimeType = CloudDriveClient.MIME_TYPE_FOLDER,
-            isFolder = true
-        )
-    }
 
-    override suspend fun deleteFile(fileId: String): Unit = withContext(Dispatchers.IO) {
-        getDriveService().files().delete(fileId).execute()
-    }
-
-    override suspend fun downloadFile(fileId: String): ByteArray = withContext(Dispatchers.IO) {
-        val outputStream = ByteArrayOutputStream()
-        getDriveService().files().get(fileId)
-            .executeMediaAndDownloadTo(outputStream)
-        outputStream.toByteArray()
-    }
-
-    override suspend fun updateFile(fileId: String, content: ByteArray): DriveFile = withContext(Dispatchers.IO) {
-        // Retrieve current metadata to keep name/mimeType if needed, or just update content
-        // Creating a new File object with empty metadata to only update content is possible,
-        // but often we might want to update modified time etc.
-        val fileMetadata = File() 
-        
-        // We need to guess the mime type or retrieve it. For update, let's assume we keep existing or use generic.
-        // But ByteArrayContent needs a type. 
-        // Let's fetch the file first to get the mimeType.
-        val existingFile = getDriveService().files().get(fileId).setFields("mimeType").execute()
-        val mimeType = existingFile.mimeType
-        
-        val mediaContent = ByteArrayContent(mimeType, content)
-        
-        val updatedFile = getDriveService().files().update(fileId, fileMetadata, mediaContent)
-            .setFields("id, name, mimeType")
-            .execute()
-            
-        DriveFile(
-            id = updatedFile.id,
-            name = updatedFile.name,
-            mimeType = updatedFile.mimeType,
-            isFolder = updatedFile.mimeType == CloudDriveClient.MIME_TYPE_FOLDER
-        )
-    }
-
-    override suspend fun isAuthorized(): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
-            val flow = getFlow(httpTransport)
-            val credential = flow.loadCredential("user")
-            
-            if (credential == null) return@withContext false
-            
-            val refreshToken = credential.refreshToken
-            val expiresIn = credential.expiresInSeconds
-            // Authorized if we have a refresh token OR a valid access token
-            return@withContext refreshToken != null || (expiresIn != null && expiresIn > 60)
-        } catch (e: Exception) {
-            Logger.e("GoogleDriveClient", "Failed to check authorization status: ${e.message}")
-            false
+    override suspend fun deleteFile(fileId: String): Unit =
+        withContext(Dispatchers.IO) {
+            getDriveService().files().delete(fileId).execute()
         }
-    }
 
-    override suspend fun authorize(): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Force re-authorization or load existing
-            // accessing driveService triggers authorization via getCredentials
-            // But getCredentials calls `authorize("user")`
-            // If we are already authorized, this returns immediately.
-            // If not, it opens browser.
-            val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
-            val credential = getCredentials(httpTransport)
+    override suspend fun downloadFile(fileId: String): ByteArray =
+        withContext(Dispatchers.IO) {
+            val outputStream = ByteArrayOutputStream()
+            getDriveService()
+                .files()
+                .get(fileId)
+                .executeMediaAndDownloadTo(outputStream)
+            outputStream.toByteArray()
+        }
 
-            if (credential != null) {
-                driveServiceCache = Drive.Builder(httpTransport, jsonFactory, credential)
-                    .setApplicationName(applicationName)
-                    .build()
-                true
-            } else {
+    override suspend fun updateFile(
+        fileId: String,
+        content: ByteArray,
+    ): DriveFile =
+        withContext(Dispatchers.IO) {
+            // Retrieve current metadata to keep name/mimeType if needed, or just update content
+            // Creating a new File object with empty metadata to only update content is possible,
+            // but often we might want to update modified time etc.
+            val fileMetadata = File()
+
+            // We need to guess the mime type or retrieve it. For update, let's assume we keep existing or use generic.
+            // But ByteArrayContent needs a type.
+            // Let's fetch the file first to get the mimeType.
+            val existingFile =
+                getDriveService()
+                    .files()
+                    .get(fileId)
+                    .setFields("mimeType")
+                    .execute()
+            val mimeType = existingFile.mimeType
+
+            val mediaContent = ByteArrayContent(mimeType, content)
+
+            val updatedFile =
+                getDriveService()
+                    .files()
+                    .update(fileId, fileMetadata, mediaContent)
+                    .setFields("id, name, mimeType")
+                    .execute()
+
+            DriveFile(
+                id = updatedFile.id,
+                name = updatedFile.name,
+                mimeType = updatedFile.mimeType,
+                isFolder = updatedFile.mimeType == CloudDriveClient.MIME_TYPE_FOLDER,
+            )
+        }
+
+    override suspend fun isAuthorized(): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+                val flow = getFlow(httpTransport)
+                val credential = flow.loadCredential("user")
+
+                if (credential == null) return@withContext false
+
+                val refreshToken = credential.refreshToken
+                val expiresIn = credential.expiresInSeconds
+                // Authorized if we have a refresh token OR a valid access token
+                return@withContext refreshToken != null || (expiresIn != null && expiresIn > 60)
+            } catch (e: Exception) {
+                Logger.e("GoogleDriveClient", "Failed to check authorization status: ${e.message}")
                 false
             }
-        } catch (e: Exception) {
-            Logger.e("GoogleDriveClient", "Failed to authorize: ${e.message}")
-            // Ensure we don't keep a potentially inconsistent cached service
+        }
+
+    override suspend fun authorize(): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                // Force re-authorization or load existing
+                // accessing driveService triggers authorization via getCredentials
+                // But getCredentials calls `authorize("user")`
+                // If we are already authorized, this returns immediately.
+                // If not, it opens browser.
+                val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+                val credential = getCredentials(httpTransport)
+
+                if (credential != null) {
+                    driveServiceCache =
+                        Drive
+                            .Builder(httpTransport, jsonFactory, credential)
+                            .setApplicationName(applicationName)
+                            .build()
+                    true
+                } else {
+                    false
+                }
+            } catch (e: Exception) {
+                Logger.e("GoogleDriveClient", "Failed to authorize: ${e.message}")
+                // Ensure we don't keep a potentially inconsistent cached service
+                driveServiceCache = null
+                false
+            }
+        }
+
+    override suspend fun signOut() =
+        withContext(Dispatchers.IO) {
+            val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+            val flow = getFlow(httpTransport)
+            flow.credentialDataStore.delete("user")
             driveServiceCache = null
-            false
         }
-    }
 
-    override suspend fun signOut() = withContext(Dispatchers.IO) {
-        val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
-        val flow = getFlow(httpTransport)
-        flow.credentialDataStore.delete("user")
-        driveServiceCache = null
-    }
-
-    override suspend fun getUserInfo(): UserInfo? = withContext(Dispatchers.IO) {
-        if (!isAuthorized()) return@withContext null
-        try {
-            val about = getDriveService().about().get().setFields("user").execute()
-            val user = about.user
-            UserInfo(
-                name = user.displayName,
-                email = user.emailAddress,
-                photoUrl = user.photoLink
-            )
-        } catch (e: Exception) {
-            Logger.e("GoogleDriveClient", "Failed to get user info: ${e.message}")
-            null
+    override suspend fun getUserInfo(): UserInfo? =
+        withContext(Dispatchers.IO) {
+            if (!isAuthorized()) return@withContext null
+            try {
+                val about =
+                    getDriveService()
+                        .about()
+                        .get()
+                        .setFields("user")
+                        .execute()
+                val user = about.user
+                UserInfo(
+                    name = user.displayName,
+                    email = user.emailAddress,
+                    photoUrl = user.photoLink,
+                )
+            } catch (e: Exception) {
+                Logger.e("GoogleDriveClient", "Failed to get user info: ${e.message}")
+                null
+            }
         }
-    }
 }
 
 private val googleDriveClientInstance by lazy { GoogleDriveClient() }
+
 actual fun getCloudDriveClient(): CloudDriveClient = googleDriveClientInstance

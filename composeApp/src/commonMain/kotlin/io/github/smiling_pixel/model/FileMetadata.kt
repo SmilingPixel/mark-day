@@ -5,5 +5,5 @@ data class FileMetadata(
     val originalFileName: String,
     val filePath: String,
     val tags: List<String>,
-    val createdAt: Long
+    val createdAt: Long,
 )

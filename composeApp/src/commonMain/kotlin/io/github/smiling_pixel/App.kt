@@ -9,46 +9,45 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import coil3.compose.setSingletonImageLoaderFactory
+import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
+import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
-import io.github.smiling_pixel.database.InMemoryFileMetadataDao
-import io.github.smiling_pixel.client.GoogleWeatherClient
-import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.preference.getSettingsRepository
-import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.screens.EntriesScreen
-import io.github.smiling_pixel.screens.EntryDetailsScreen
 import io.github.smiling_pixel.screens.InsightsScreen
 import io.github.smiling_pixel.screens.MomentsScreen
 import io.github.smiling_pixel.screens.ProfileScreen
 import io.github.smiling_pixel.screens.SettingsScreen
+import io.github.smiling_pixel.theme.MarkDayTheme
+import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.util.Logger
-import coil3.compose.setSingletonImageLoaderFactory
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 @Serializable
 sealed interface AppRoute
@@ -72,14 +71,15 @@ object ProfileRoute : AppRoute
 @Composable
 fun App(
     providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
-    providedFileRepo: FileRepository? = null
+    providedFileRepo: FileRepository? = null,
 ) {
     // Memoize the image loader factory to prevent it from being re-created on every recomposition.
-    // While setSingletonImageLoaderFactory is a @Composable, we use remember here to ensure the 
+    // While setSingletonImageLoaderFactory is a @Composable, we use remember here to ensure the
     // factory lambda remains stable across theme changes and other UI updates.
-    val imageLoaderFactory = remember {
-        { context: coil3.PlatformContext -> getAsyncImageLoader(context) }
-    }
+    val imageLoaderFactory =
+        remember {
+            { context: coil3.PlatformContext -> getAsyncImageLoader(context) }
+        }
     setSingletonImageLoaderFactory(imageLoaderFactory)
 
     val settingsRepository = remember { getSettingsRepository() }
@@ -101,12 +101,13 @@ fun App(
 
     MarkDayTheme(
         useDarkTheme = useDarkTheme,
-        isPureBlack = isPureBlackEnabled!!
+        isPureBlack = isPureBlackEnabled!!,
     ) {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
-        val fileRepo = providedFileRepo ?: remember { 
-            FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao()) 
-        }
+        val fileRepo =
+            providedFileRepo ?: remember {
+                FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao())
+            }
         val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
         val navController = rememberNavController()
@@ -123,9 +124,10 @@ fun App(
         }
 
         Scaffold(
-            modifier = Modifier
-                .safeContentPadding()
-                .fillMaxSize(),
+            modifier =
+                Modifier
+                    .safeContentPadding()
+                    .fillMaxSize(),
             topBar = {
                 if (isSelectionMode) {
                     CenterAlignedTopAppBar(
@@ -150,18 +152,19 @@ fun App(
                             }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete Selected")
                             }
-                        }
+                        },
                     )
                 } else {
                     CenterAlignedTopAppBar(
                         title = {
-                            val title = when (selected) {
-                                EntriesRoute -> "Entries"
-                                MomentsRoute -> "Moments"
-                                InsightsRoute -> "Insights"
-                                SettingsRoute -> "Settings"
-                                ProfileRoute -> "Profile"
-                            }
+                            val title =
+                                when (selected) {
+                                    EntriesRoute -> "Entries"
+                                    MomentsRoute -> "Moments"
+                                    InsightsRoute -> "Insights"
+                                    SettingsRoute -> "Settings"
+                                    ProfileRoute -> "Profile"
+                                }
                             Text(title)
                         },
                         actions = {
@@ -174,7 +177,7 @@ fun App(
                                     Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                                 }
                             }
-                        }
+                        },
                     )
                 }
             },
@@ -187,7 +190,7 @@ fun App(
                             navController.navigate(EntriesRoute)
                         },
                         icon = { Text("E") },
-                        label = { Text("Entries") }
+                        label = { Text("Entries") },
                     )
                     NavigationBarItem(
                         selected = selected == MomentsRoute,
@@ -196,7 +199,7 @@ fun App(
                             navController.navigate(MomentsRoute)
                         },
                         icon = { Text("M") },
-                        label = { Text("Moments") }
+                        label = { Text("Moments") },
                     )
                     NavigationBarItem(
                         selected = selected == InsightsRoute,
@@ -205,7 +208,7 @@ fun App(
                             navController.navigate(InsightsRoute)
                         },
                         icon = { Text("I") },
-                        label = { Text("Insights") }
+                        label = { Text("Insights") },
                     )
                     NavigationBarItem(
                         selected = selected == SettingsRoute,
@@ -214,10 +217,10 @@ fun App(
                             navController.navigate(SettingsRoute)
                         },
                         icon = { Text("S") },
-                        label = { Text("Settings") }
+                        label = { Text("Settings") },
                     )
                 }
-            }
+            },
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding).fillMaxSize(), contentAlignment = Alignment.Center) {
                 NavHost(navController = navController, startDestination = EntriesRoute) {
@@ -228,7 +231,7 @@ fun App(
                             isSelectionMode = isSelectionMode,
                             selectedIds = selectedIds,
                             onSelectionModeChange = { isSelectionMode = it },
-                            onSelectionChange = { selectedIds = it }
+                            onSelectionChange = { selectedIds = it },
                         )
                     }
                     composable<MomentsRoute> {

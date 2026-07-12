@@ -8,19 +8,19 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class SyncManagerCodecTest {
-
     @Test
     fun encodeDecodeRoundTripPreservesSyncId() {
-        val entry = DiaryEntry(
-            id = 7,
-            syncId = "123e4567-e89b-12d3-a456-426614174000",
-            title = "Trip",
-            content = "Line 1\nLine 2",
-            entryDate = LocalDate.parse("2026-03-31"),
-            weatherCondition = "Sunny",
-            minTemperature = 10.5,
-            maxTemperature = 20.5
-        )
+        val entry =
+            DiaryEntry(
+                id = 7,
+                syncId = "123e4567-e89b-12d3-a456-426614174000",
+                title = "Trip",
+                content = "Line 1\nLine 2",
+                entryDate = LocalDate.parse("2026-03-31"),
+                weatherCondition = "Sunny",
+                minTemperature = 10.5,
+                maxTemperature = 20.5,
+            )
 
         val decoded = decodeEntryForSync(encodeEntryForSync(entry), entry.copy(id = 0))
 
@@ -36,7 +36,8 @@ class SyncManagerCodecTest {
 
     @Test
     fun decodeReturnsNullWhenSyncIdIsNotUuid() {
-        val payload = """
+        val payload =
+            """
             {
               "syncId": "legacy-id-42",
               "title": "Title",
@@ -45,12 +46,19 @@ class SyncManagerCodecTest {
               "entryDateIso": "2026-03-31",
               "content": "Body"
             }
-        """.trimIndent().encodeToByteArray()
+            """.trimIndent().encodeToByteArray()
 
-        val decoded = decodeEntryForSync(
-            bytes = payload,
-            original = DiaryEntry(id = 0, syncId = "123e4567-e89b-12d3-a456-426614174000", title = "", content = "")
-        )
+        val decoded =
+            decodeEntryForSync(
+                bytes = payload,
+                original =
+                    DiaryEntry(
+                        id = 0,
+                        syncId = "123e4567-e89b-12d3-a456-426614174000",
+                        title = "",
+                        content = "",
+                    ),
+            )
 
         assertNull(decoded)
     }

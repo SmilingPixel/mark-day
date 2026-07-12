@@ -7,12 +7,11 @@ import coil3.request.crossfade
 import io.github.smiling_pixel.filesystem.LocalFileFetcher
 import io.github.smiling_pixel.filesystem.fileManager
 
-fun getAsyncImageLoader(context: PlatformContext): ImageLoader {
-    return ImageLoader.Builder(context)
+fun getAsyncImageLoader(context: PlatformContext): ImageLoader =
+    ImageLoader
+        .Builder(context)
         .components {
             add(LocalFileFetcher.Factory(fileManager)) // use localfile scheme, e.g., `localfile:///myimage.jpg`
             add(KtorNetworkFetcherFactory())
-        }
-        .crossfade(true)
+        }.crossfade(true)
         .build()
-}

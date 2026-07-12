@@ -22,7 +22,7 @@ data class SyncResult(
     val uploaded: Int,
     val downloaded: Int,
     val unchanged: Int,
-    val warnings: List<String> = emptyList()
+    val warnings: List<String> = emptyList(),
 )
 
 /**
@@ -36,7 +36,7 @@ suspend fun performCloudSync(
     client: CloudDriveClient,
     repo: DiaryRepository,
     localEntries: List<DiaryEntry>,
-    settings: SettingsRepository = getSettingsRepository()
+    settings: SettingsRepository = getSettingsRepository(),
 ): SyncResult {
     val isEnabled = settings.isCloudSyncEnabled.first()
     if (!isEnabled) {
@@ -50,9 +50,10 @@ suspend fun performCloudSync(
     val syncPath = settings.cloudSyncPath.first()
     val parentId = getOrCreateFolderByPath(client, syncPath)
 
-    val remoteFiles = client.listFiles(parentId).filter {
-        it.name.startsWith(SYNC_ENTRY_FILE_PREFIX) || it.name.startsWith(SYNC_TOMBSTONE_FILE_PREFIX)
-    }
+    val remoteFiles =
+        client.listFiles(parentId).filter {
+            it.name.startsWith(SYNC_ENTRY_FILE_PREFIX) || it.name.startsWith(SYNC_TOMBSTONE_FILE_PREFIX)
+        }
     val remoteFileMap = mutableMapOf<String, Pair<io.github.smiling_pixel.client.DriveFile, Long>>()
     val remoteFileVersions = mutableMapOf<String, MutableList<Pair<io.github.smiling_pixel.client.DriveFile, Long>>>()
     val remoteTombstoneMap = mutableMapOf<String, Pair<io.github.smiling_pixel.client.DriveFile, Long>>()
@@ -170,12 +171,13 @@ suspend fun performCloudSync(
         val remoteTombstone = remoteTombstoneMap[syncId]
         if (remoteTombstone == null || remoteTombstone.second < deletedAtEpochMillis) {
             val name = buildRemoteTombstoneFileName(syncId, deletedAtEpochMillis)
-            val created = client.createFile(
-                name,
-                encodeTombstoneForSync(syncId, deletedAtEpochMillis),
-                SYNC_ENTRY_MIME_TYPE,
-                parentId
-            )
+            val created =
+                client.createFile(
+                    name,
+                    encodeTombstoneForSync(syncId, deletedAtEpochMillis),
+                    SYNC_ENTRY_MIME_TYPE,
+                    parentId,
+                )
             if (remoteTombstone != null) {
                 runCatching { client.deleteFile(remoteTombstone.first.id) }
             }
@@ -210,7 +212,7 @@ suspend fun performCloudSync(
 suspend fun recordLocalDeletionTombstone(
     syncId: String,
     deletedAtEpochMillis: Long = Clock.System.now().toEpochMilliseconds(),
-    settings: SettingsRepository = getSettingsRepository()
+    settings: SettingsRepository = getSettingsRepository(),
 ) {
     if (!looksLikeUuid(syncId)) return
 
@@ -222,10 +224,13 @@ suspend fun recordLocalDeletionTombstone(
     }
 }
 
-private suspend fun getOrCreateFolderByPath(client: CloudDriveClient, path: String): String? {
+private suspend fun getOrCreateFolderByPath(
+    client: CloudDriveClient,
+    path: String,
+): String? {
     val folders = path.split("/").filter { it.isNotBlank() }
     if (folders.isEmpty()) return null
-    
+
     var currentParentId: String? = null
     for (folderName in folders) {
         val files = client.listFiles(currentParentId)
@@ -245,13 +250,15 @@ private suspend fun getOrCreateFolderByPath(client: CloudDriveClient, path: Stri
  * @param timestampMillis Entry update timestamp in epoch milliseconds.
  * @return The sync-compatible entry file name.
  */
-internal fun buildSyncEntryFileName(syncId: String, timestampMillis: Long): String {
-    return "${SYNC_ENTRY_FILE_PREFIX}${syncId}_${timestampMillis}${SYNC_ENTRY_FILE_EXTENSION}"
-}
+internal fun buildSyncEntryFileName(
+    syncId: String,
+    timestampMillis: Long,
+): String = "${SYNC_ENTRY_FILE_PREFIX}${syncId}_${timestampMillis}${SYNC_ENTRY_FILE_EXTENSION}"
 
-private fun buildRemoteTombstoneFileName(syncId: String, timestampMillis: Long): String {
-    return "${SYNC_TOMBSTONE_FILE_PREFIX}${syncId}_${timestampMillis}${SYNC_ENTRY_FILE_EXTENSION}"
-}
+private fun buildRemoteTombstoneFileName(
+    syncId: String,
+    timestampMillis: Long,
+): String = "${SYNC_TOMBSTONE_FILE_PREFIX}${syncId}_${timestampMillis}${SYNC_ENTRY_FILE_EXTENSION}"
 
 private fun parseRemoteEntryFileName(fileName: String): Pair<String, Long>? {
     if (!fileName.startsWith(SYNC_ENTRY_FILE_PREFIX) || !fileName.endsWith(SYNC_ENTRY_FILE_EXTENSION)) return null
@@ -296,9 +303,10 @@ private const val SYNC_TOMBSTONE_FILE_PREFIX = "markday_tombstone_"
 private const val SYNC_LEGACY_FILE_PREFIX = "markday_legacy_"
 private const val SYNC_ENTRY_MIME_TYPE = "text/plain"
 
-private val syncPayloadJson = Json {
-    ignoreUnknownKeys = true
-}
+private val syncPayloadJson =
+    Json {
+        ignoreUnknownKeys = true
+    }
 
 @Serializable
 private data class SyncDeletionTombstonePayload(
@@ -321,22 +329,26 @@ private data class SyncEntryPayload(
 
 @OptIn(ExperimentalTime::class)
 internal fun encodeEntryForSync(entry: DiaryEntry): ByteArray {
-    val payload = SyncEntryPayload(
-        syncId = entry.syncId,
-        title = entry.title,
-        createdAtEpochMillis = entry.createdAt.toEpochMilliseconds(),
-        updatedAtEpochMillis = entry.updatedAt.toEpochMilliseconds(),
-        entryDateIso = entry.entryDate.toString(),
-        weatherCondition = entry.weatherCondition,
-        minTemperature = entry.minTemperature,
-        maxTemperature = entry.maxTemperature,
-        content = entry.content
-    )
+    val payload =
+        SyncEntryPayload(
+            syncId = entry.syncId,
+            title = entry.title,
+            createdAtEpochMillis = entry.createdAt.toEpochMilliseconds(),
+            updatedAtEpochMillis = entry.updatedAt.toEpochMilliseconds(),
+            entryDateIso = entry.entryDate.toString(),
+            weatherCondition = entry.weatherCondition,
+            minTemperature = entry.minTemperature,
+            maxTemperature = entry.maxTemperature,
+            content = entry.content,
+        )
     return syncPayloadJson.encodeToString(SyncEntryPayload.serializer(), payload).encodeToByteArray()
 }
 
 @OptIn(ExperimentalTime::class)
-internal fun decodeEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEntry? {
+internal fun decodeEntryForSync(
+    bytes: ByteArray,
+    original: DiaryEntry,
+): DiaryEntry? {
     try {
         val text = bytes.decodeToString()
         val payload = syncPayloadJson.decodeFromString(SyncEntryPayload.serializer(), text)
@@ -360,7 +372,7 @@ internal fun decodeEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEn
             weatherCondition = weatherCondition,
             minTemperature = minTemperature,
             maxTemperature = maxTemperature,
-            content = content
+            content = content,
         )
     } catch (e: Exception) {
         return null
@@ -370,10 +382,11 @@ internal fun decodeEntryForSync(bytes: ByteArray, original: DiaryEntry): DiaryEn
 private suspend fun loadLocalDeletionTombstones(settings: SettingsRepository): Map<String, Long> {
     val raw = settings.cloudSyncDeletionTombstonesJson.first() ?: return emptyMap()
     return try {
-        val payloads = syncPayloadJson.decodeFromString(
-            ListSerializer(SyncDeletionTombstonePayload.serializer()),
-            raw
-        )
+        val payloads =
+            syncPayloadJson.decodeFromString(
+                ListSerializer(SyncDeletionTombstonePayload.serializer()),
+                raw,
+            )
         payloads
             .filter { looksLikeUuid(it.syncId) }
             .associate { it.syncId to it.deletedAtEpochMillis }
@@ -382,21 +395,28 @@ private suspend fun loadLocalDeletionTombstones(settings: SettingsRepository): M
     }
 }
 
-private suspend fun saveLocalDeletionTombstones(settings: SettingsRepository, tombstones: Map<String, Long>) {
+private suspend fun saveLocalDeletionTombstones(
+    settings: SettingsRepository,
+    tombstones: Map<String, Long>,
+) {
     if (tombstones.isEmpty()) {
         settings.setCloudSyncDeletionTombstonesJson(null)
         return
     }
 
-    val payloads = tombstones
-        .entries
-        .sortedBy { it.key }
-        .map { SyncDeletionTombstonePayload(syncId = it.key, deletedAtEpochMillis = it.value) }
+    val payloads =
+        tombstones
+            .entries
+            .sortedBy { it.key }
+            .map { SyncDeletionTombstonePayload(syncId = it.key, deletedAtEpochMillis = it.value) }
     val json = syncPayloadJson.encodeToString(ListSerializer(SyncDeletionTombstonePayload.serializer()), payloads)
     settings.setCloudSyncDeletionTombstonesJson(json)
 }
 
-private fun encodeTombstoneForSync(syncId: String, deletedAtEpochMillis: Long): ByteArray {
+private fun encodeTombstoneForSync(
+    syncId: String,
+    deletedAtEpochMillis: Long,
+): ByteArray {
     val payload = SyncDeletionTombstonePayload(syncId = syncId, deletedAtEpochMillis = deletedAtEpochMillis)
     return syncPayloadJson.encodeToString(SyncDeletionTombstonePayload.serializer(), payload).encodeToByteArray()
 }
@@ -411,7 +431,7 @@ private suspend fun quarantineLegacyFile(
     client: CloudDriveClient,
     driveFile: io.github.smiling_pixel.client.DriveFile,
     content: ByteArray,
-    parentId: String?
+    parentId: String?,
 ): String {
     val legacyName = driveFile.name.replaceFirst(SYNC_ENTRY_FILE_PREFIX, SYNC_LEGACY_FILE_PREFIX)
     runCatching {
