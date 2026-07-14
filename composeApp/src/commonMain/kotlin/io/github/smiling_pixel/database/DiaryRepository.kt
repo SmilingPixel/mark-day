@@ -37,6 +37,17 @@ class DiaryRepository(
         }
     }
 
+    /**
+     * Returns the current diary entries directly from persistent storage.
+     *
+     * Use this for operations that require an authoritative snapshot. [entries] is updated
+     * asynchronously and may briefly contain stale data while the repository is initializing or
+     * after a write.
+     *
+     * @return The diary entries currently stored by the DAO.
+     */
+    suspend fun getAll(): List<DiaryEntry> = dao.getAll()
+
     suspend fun insert(entry: DiaryEntry): Int {
         val id = dao.insert(entry)
         // If DAO is flow-backed, the collector will update _entries automatically.

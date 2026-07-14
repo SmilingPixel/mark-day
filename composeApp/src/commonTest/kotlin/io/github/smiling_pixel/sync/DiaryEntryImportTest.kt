@@ -1,8 +1,11 @@
 package io.github.smiling_pixel.sync
 
 import io.github.smiling_pixel.database.DiaryRepository
+import io.github.smiling_pixel.database.IDiaryDao
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import io.github.smiling_pixel.model.DiaryEntry
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
@@ -50,6 +53,27 @@ class DiaryEntryImportTest {
         assertFalse(preview.hasImportableEntries)
         assertEquals(listOf("not-an-entry.txt"), preview.invalidFileNames)
     }
+
+    @Test
+    fun repositoryPreviewDetectsConflictBeforeEntriesStateIsInitialized() =
+        runTest {
+            val existing = diaryEntry(id = 9, syncId = "123e4567-e89b-12d3-a456-426614174000", title = "Local")
+            val imported = existing.copy(id = 0, title = "Imported")
+            val dao = NonEmittingDiaryDao(listOf(existing))
+            val repo = DiaryRepository(dao, scope = backgroundScope)
+
+            assertEquals(emptyList(), repo.entries.value)
+
+            val preview = previewDiaryEntryImport(listOf(importFile(imported)), repo)
+
+            assertEquals(emptyList(), preview.newEntries)
+            assertEquals(
+                existing.syncId,
+                preview.conflicts
+                    .single()
+                    .existingEntry.syncId,
+            )
+        }
 
     @Test
     fun conflictIsSkippedWhenOverrideIsFalse() =
@@ -141,4 +165,18 @@ class DiaryEntryImportTest {
             minTemperature = 10.5,
             maxTemperature = 20.5,
         )
+
+    private class NonEmittingDiaryDao(
+        private val storedEntries: List<DiaryEntry>,
+    ) : IDiaryDao {
+        override val entriesFlow: Flow<List<DiaryEntry>> = MutableSharedFlow()
+
+        override suspend fun getAll(): List<DiaryEntry> = storedEntries
+
+        override suspend fun insert(entry: DiaryEntry): Int = error("Not used")
+
+        override suspend fun update(entry: DiaryEntry) = error("Not used")
+
+        override suspend fun delete(entry: DiaryEntry) = error("Not used")
+    }
 }

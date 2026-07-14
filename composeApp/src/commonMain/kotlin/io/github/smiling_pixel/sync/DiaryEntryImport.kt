@@ -85,6 +85,18 @@ data class DiaryEntryImportResult(
 }
 
 /**
+ * Builds a diary entry import preview using an authoritative snapshot from local storage.
+ *
+ * @param files Selected local files.
+ * @param repo Diary repository containing the current local entries.
+ * @return A preview containing importable entries, conflicts, and skipped file details.
+ */
+suspend fun previewDiaryEntryImport(
+    files: List<DiaryEntryImportFile>,
+    repo: DiaryRepository,
+): DiaryEntryImportPreview = previewDiaryEntryImport(files, repo.getAll())
+
+/**
  * Builds a diary entry import preview from selected local files and current local entries.
  *
  * @param files Selected local files.

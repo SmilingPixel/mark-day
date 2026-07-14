@@ -128,7 +128,7 @@ fun SettingsScreen(repo: DiaryRepository) {
                             content = file.readBytes(),
                         )
                     }
-                val preview = previewDiaryEntryImport(files, repo.entries.value)
+                val preview = previewDiaryEntryImport(files, repo)
                 if (!preview.hasImportableEntries) {
                     diagnosticsMessage =
                         "No diary entries to import. Ignored ${preview.invalidFileNames.size} invalid files."
