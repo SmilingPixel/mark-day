@@ -102,15 +102,21 @@ fun SettingsScreen(repo: DiaryRepository) {
         preview: DiaryEntryImportPreview,
         overrideConflicts: Boolean,
     ) {
-        val result = applyDiaryEntryImport(preview, repo, overrideConflicts)
-        // Import intentionally mirrors normal in-app save: it writes local data and lets manual or
-        // auto sync run later. If immediate post-import sync is added in the future, do not pass
-        // repo.entries.value directly right after insert/update. DiaryRepository refreshes that
-        // StateFlow from the DAO asynchronously, so it can briefly contain a pre-import snapshot.
-        diagnosticsMessage =
-            buildImportDiagnosticsMessage(
-                result = result,
-            )
+        try {
+            val result = applyDiaryEntryImport(preview, repo, overrideConflicts)
+            // Import intentionally mirrors normal in-app save: it writes local data and lets manual or
+            // auto sync run later. If immediate post-import sync is added in the future, do not pass
+            // repo.entries.value directly right after insert/update. DiaryRepository refreshes that
+            // StateFlow from the DAO asynchronously, so it can briefly contain a pre-import snapshot.
+            diagnosticsMessage =
+                buildImportDiagnosticsMessage(
+                    result = result,
+                )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            diagnosticsMessage = "Diary entry import failed: ${e.message ?: "Unknown error"}."
+        }
     }
 
     val diaryImportPicker =
