@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +21,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -44,16 +47,26 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import io.github.smiling_pixel.client.UserInfo
 import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.database.DiaryRepository
+import io.github.smiling_pixel.filesystem.name
+import io.github.smiling_pixel.filesystem.readBytes
+import io.github.smiling_pixel.filesystem.rememberFilePicker
 import io.github.smiling_pixel.getPlatform
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.sync.DiaryEntryExportResult
+import io.github.smiling_pixel.sync.DiaryEntryImportFile
+import io.github.smiling_pixel.sync.DiaryEntryImportPreview
+import io.github.smiling_pixel.sync.DiaryEntryImportResult
+import io.github.smiling_pixel.sync.applyDiaryEntryImport
 import io.github.smiling_pixel.sync.exportDiaryEntries
+import io.github.smiling_pixel.sync.isDiaryEntryImportAvailable
+import io.github.smiling_pixel.sync.previewDiaryEntryImport
 import io.github.smiling_pixel.util.LogExportResult
 import io.github.smiling_pixel.util.LogLevel
 import io.github.smiling_pixel.util.Logger
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(repo: DiaryRepository) {
     val scope = rememberCoroutineScope()
@@ -74,6 +87,7 @@ fun SettingsScreen(repo: DiaryRepository) {
     val isLogPersistenceEnabled by settingsRepository.isLogPersistenceEnabled.collectAsState(initial = false)
     val platform = remember { getPlatform() }
     val isWebTrial = platform.name.contains("Web", ignoreCase = true)
+    val isDiaryImportAvailable = remember { isDiaryEntryImportAvailable() }
 
     val cloudDriveClient = remember { getCloudDriveClient() }
     var userInfo by remember { mutableStateOf<UserInfo?>(null) }
@@ -82,6 +96,58 @@ fun SettingsScreen(repo: DiaryRepository) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var diagnosticsMessage by remember { mutableStateOf<String?>(null) }
     var isCheckingAuth by remember { mutableStateOf(false) }
+    var pendingImportPreview by remember { mutableStateOf<DiaryEntryImportPreview?>(null) }
+
+    suspend fun applyImportPreview(
+        preview: DiaryEntryImportPreview,
+        overrideConflicts: Boolean,
+    ) {
+        try {
+            val result = applyDiaryEntryImport(preview, repo, overrideConflicts)
+            // Import intentionally mirrors normal in-app save: it writes local data and lets manual or
+            // auto sync run later. If immediate post-import sync is added in the future, do not pass
+            // repo.entries.value directly right after insert/update. DiaryRepository refreshes that
+            // StateFlow from the DAO asynchronously, so it can briefly contain a pre-import snapshot.
+            diagnosticsMessage =
+                buildImportDiagnosticsMessage(
+                    result = result,
+                )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            diagnosticsMessage = "Diary entry import failed: ${e.message ?: "Unknown error"}."
+        }
+    }
+
+    val diaryImportPicker =
+        rememberFilePicker { platformFiles ->
+            scope.launch {
+                if (!isDiaryImportAvailable) {
+                    diagnosticsMessage = "Diary entry import is unavailable on this platform."
+                    return@launch
+                }
+
+                val files =
+                    platformFiles.map { file ->
+                        DiaryEntryImportFile(
+                            name = file.name(),
+                            content = file.readBytes(),
+                        )
+                    }
+                val preview = previewDiaryEntryImport(files, repo)
+                if (!preview.hasImportableEntries) {
+                    diagnosticsMessage =
+                        "No diary entries to import. Ignored ${preview.invalidFileNames.size} invalid files."
+                    return@launch
+                }
+
+                if (preview.conflicts.isNotEmpty()) {
+                    pendingImportPreview = preview
+                } else {
+                    applyImportPreview(preview, overrideConflicts = false)
+                }
+            }
+        }
 
     val checkAuthStatus by rememberUpdatedState {
         // use isCheckingAuth to prevent concurrent execution of the authentication status check
@@ -108,6 +174,43 @@ fun SettingsScreen(repo: DiaryRepository) {
                 }
             }
         }
+    }
+
+    pendingImportPreview?.let { preview ->
+        AlertDialog(
+            onDismissRequest = { pendingImportPreview = null },
+            title = { Text("Import Conflicts") },
+            text = {
+                Text(
+                    "Found ${preview.conflicts.size} diary entries that already exist locally. " +
+                        "Override all conflicts or skip them?",
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingImportPreview = null
+                        scope.launch {
+                            applyImportPreview(preview, overrideConflicts = true)
+                        }
+                    },
+                ) {
+                    Text("Override All")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        pendingImportPreview = null
+                        scope.launch {
+                            applyImportPreview(preview, overrideConflicts = false)
+                        }
+                    },
+                ) {
+                    Text("Skip Conflicts")
+                }
+            },
+        )
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -477,7 +580,21 @@ fun SettingsScreen(repo: DiaryRepository) {
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = {
+                    if (isDiaryImportAvailable) {
+                        diaryImportPicker.launch()
+                    } else {
+                        diagnosticsMessage = "Diary entry import is unavailable on this platform."
+                    }
+                },
+            ) {
+                Text("Import Diary Entries")
+            }
             Button(
                 onClick = {
                     scope.launch {
@@ -561,3 +678,8 @@ fun SettingsScreen(repo: DiaryRepository) {
         )
     }
 }
+
+private fun buildImportDiagnosticsMessage(result: DiaryEntryImportResult): String =
+    "Import complete. Inserted: ${result.inserted}; Updated: ${result.updated}; " +
+        "Skipped conflicts: ${result.skippedConflicts}; Ignored invalid files: ${result.ignoredInvalidFiles}; " +
+        "Skipped duplicate files: ${result.skippedDuplicateFiles}."
