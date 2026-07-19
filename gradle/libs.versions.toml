@@ -17,6 +17,7 @@ kotlin = "2.3.0"
 kotlinx-coroutines = "1.10.2"
 ktor = "3.3.3"
 ktlintGradle = "14.2.0"
+detekt = "1.23.8"
 okio = "3.16.2"
 room = "2.8.4"
 ksp = "2.3.3"
@@ -71,5 +72,6 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }

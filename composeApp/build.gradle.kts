@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
 }
@@ -30,6 +31,17 @@ ktlint {
         exclude("**/FileMetadataRoomDao_Impl.kt")
         exclude("**/Res.kt")
     }
+}
+
+detekt {
+    source.setFrom(
+        "src/androidMain/kotlin",
+        "src/commonMain/kotlin",
+        "src/commonTest/kotlin",
+        "src/jvmMain/kotlin",
+        "src/nonWebMain/kotlin",
+        "src/wasmJsMain/kotlin",
+    )
 }
 
 kotlin {
