@@ -50,7 +50,7 @@ class DiaryDaoImpl(
                     entry.content,
                     createdAt = entry.createdAt.toEpochMilliseconds(),
                     updatedAt = entry.updatedAt.toEpochMilliseconds(),
-                    entryDate = entry.entryDate.toEpochDays().toLong(),
+                    entryDate = entry.entryDate.toEpochDays(),
                 ),
             )
         return id.toInt()
@@ -65,7 +65,7 @@ class DiaryDaoImpl(
                 entry.content,
                 createdAt = entry.createdAt.toEpochMilliseconds(),
                 updatedAt = entry.updatedAt.toEpochMilliseconds(),
-                entryDate = entry.entryDate.toEpochDays().toLong(),
+                entryDate = entry.entryDate.toEpochDays(),
             ),
         )
     }
@@ -79,7 +79,7 @@ class DiaryDaoImpl(
                 entry.content,
                 createdAt = entry.createdAt.toEpochMilliseconds(),
                 updatedAt = entry.updatedAt.toEpochMilliseconds(),
-                entryDate = entry.entryDate.toEpochDays().toLong(),
+                entryDate = entry.entryDate.toEpochDays(),
             ),
         )
     }
