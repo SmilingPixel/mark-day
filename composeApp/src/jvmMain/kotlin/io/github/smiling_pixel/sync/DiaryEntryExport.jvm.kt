@@ -28,11 +28,13 @@ internal actual suspend fun writeDiaryEntryExportFiles(files: List<DiaryEntryExp
         } else {
             SwingUtilities.invokeAndWait(showDialog)
         }
-        if (result != JFileChooser.APPROVE_OPTION || selectedDirectory == null) {
+        if (result != JFileChooser.APPROVE_OPTION) {
             return DiaryEntryExportResult.Failure("Diary entry export was cancelled.")
         }
 
-        val directory: File = selectedDirectory!!
+        val directory =
+            selectedDirectory
+                ?: return DiaryEntryExportResult.Failure("Diary entry export was cancelled.")
         if (!directory.exists()) {
             directory.mkdirs()
         }

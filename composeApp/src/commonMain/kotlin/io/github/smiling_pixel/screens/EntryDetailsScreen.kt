@@ -364,7 +364,7 @@ fun EntryDetailsScreen(
             }
 
             // show timestamps
-            val createdLocal = entry!!.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
+            val createdLocal = entry.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
             val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
 
             Text(

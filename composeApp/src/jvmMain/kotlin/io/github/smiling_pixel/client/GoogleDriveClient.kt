@@ -296,16 +296,12 @@ class GoogleDriveClient : CloudDriveClient {
                 val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
                 val credential = getCredentials(httpTransport)
 
-                if (credential != null) {
-                    driveServiceCache =
-                        Drive
-                            .Builder(httpTransport, jsonFactory, credential)
-                            .setApplicationName(applicationName)
-                            .build()
-                    true
-                } else {
-                    false
-                }
+                driveServiceCache =
+                    Drive
+                        .Builder(httpTransport, jsonFactory, credential)
+                        .setApplicationName(applicationName)
+                        .build()
+                true
             } catch (e: Exception) {
                 Logger.e("GoogleDriveClient", "Failed to authorize: ${e.message}")
                 // Ensure we don't keep a potentially inconsistent cached service
