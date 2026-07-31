@@ -103,19 +103,61 @@ the `smiling_pixel` package segment, Compose-style function names, existing inte
 key naming.
 
 ### Running Tests
+
 To run all multiplatform tests across configured targets:
+
 ```sh
 ./gradlew allTests
 ```
+
 Or to run tests for a specific platform (e.g., Desktop/JVM):
+
 ```sh
 ./gradlew composeApp:jvmTest
 ```
 
 The broader Gradle verification command is:
+
 ```sh
 ./gradlew check
 ```
 
-At the time ktlint was added, `ktlintCheck` passed, while `check` was intentionally not pursued further because the
-remaining failure was the unrelated Wasm yarn lock actualization task `kotlinWasmStoreYarnLock`.
+The Wasm browser test task links a complete test executable and can require substantially more memory than the JVM and
+Android test tasks. On a resource-constrained development machine, run the remaining checks without the Wasm browser
+tests and linker with:
+
+```sh
+./gradlew check -x wasmJsBrowserTest
+```
+
+This is a local verification fallback, not an equivalent replacement for the complete check: it does not execute the Web
+tests. Run `./gradlew check` in an environment with enough memory before releasing changes that can affect the Wasm target.
+
+### Updating the Wasm Yarn Lockfile
+
+The Kotlin/Wasm Gradle plugin generates and validates `kotlin-js-store/wasm/yarn.lock`. Do not edit this lockfile by hand.
+Dependency upgrades and Kotlin or Compose tooling upgrades can change the generated JavaScript dependency graph. When
+Gradle reports that the lockfile changed and asks for `kotlinWasmUpgradeYarnLock`, use this procedure:
+
+1. Regenerate the lockfile:
+
+   ```sh
+   ./gradlew kotlinWasmUpgradeYarnLock
+   ```
+
+2. Review the dependency changes:
+
+   ```sh
+   git diff -- kotlin-js-store/wasm/yarn.lock
+   ```
+
+3. Verify that the regenerated lockfile matches the configured dependency graph:
+
+   ```sh
+   ./gradlew kotlinWasmStoreYarnLock
+   ```
+
+4. Run `./gradlew check`. If local memory is insufficient for the Wasm test linker, use the documented exclusion above
+   and ensure the complete check runs in CI or another suitably provisioned environment.
+
+Commit the lockfile together with the dependency or tooling change that required the regeneration.
