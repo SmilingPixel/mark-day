@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -17,7 +18,9 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,6 +38,11 @@ import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import io.github.smiling_pixel.database.InMemoryFileMetadataDao
+import io.github.smiling_pixel.draft.EditorExitGuard
+import io.github.smiling_pixel.draft.EntryDraftRepository
+import io.github.smiling_pixel.draft.InMemoryEntryDraftRepository
+import io.github.smiling_pixel.draft.PlatformDraftExitProtection
+import io.github.smiling_pixel.draft.getEntryDraftRepository
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
 import io.github.smiling_pixel.preference.getSettingsRepository
@@ -67,11 +75,21 @@ object SettingsRoute : AppRoute
 @Serializable
 object ProfileRoute : AppRoute
 
+/**
+ * Displays the MarkDay application.
+ *
+ * @param providedRepo Optional diary repository used by hosts, tests, and previews.
+ * @param providedFileRepo Optional file repository used by hosts, tests, and previews.
+ * @param providedDraftRepository Optional durable draft repository used by hosts, tests, and previews.
+ * @param onExitGuardChange Reports the active editor guard to a platform window host.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(
     providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
     providedFileRepo: FileRepository? = null,
+    providedDraftRepository: EntryDraftRepository? = null,
+    onExitGuardChange: (EditorExitGuard?) -> Unit = {},
 ) {
     // Memoize the image loader factory to prevent it from being re-created on every recomposition.
     // While setSingletonImageLoaderFactory is a @Composable, we use remember here to ensure the
@@ -108,6 +126,10 @@ fun App(
             providedFileRepo ?: remember {
                 FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao())
             }
+        val draftRepository =
+            providedDraftRepository ?: remember(providedRepo) {
+                if (providedRepo == null) InMemoryEntryDraftRepository() else getEntryDraftRepository()
+            }
         val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
         val navController = rememberNavController()
@@ -117,6 +139,60 @@ fun App(
 
         var isSelectionMode by remember { mutableStateOf(false) }
         var selectedIds by remember { mutableStateOf(emptySet<String>()) }
+        var editorExitGuard by remember { mutableStateOf<EditorExitGuard?>(null) }
+        var showUnsafeNavigationDialog by remember { mutableStateOf(false) }
+        var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+        PlatformDraftExitProtection(editorExitGuard)
+        // Desktop owns its Window outside this composable, so publish the same guard used by in-app navigation to the
+        // host. DisposableEffect also clears stale callbacks when the Entries destination leaves composition.
+        DisposableEffect(editorExitGuard) {
+            onExitGuardChange(editorExitGuard)
+            onDispose { onExitGuardChange(null) }
+        }
+
+        fun requestNavigation(action: () -> Unit) {
+            val guard = editorExitGuard
+            if (guard?.hasUnpersistedChanges != true) {
+                action()
+                return
+            }
+            // Bypass the remaining debounce before changing destinations. Only persistence failure produces a dialog;
+            // already-saved drafts are intentionally retained and navigation remains silent.
+            scope.launch {
+                if (guard.persistLatest()) {
+                    action()
+                } else {
+                    pendingNavigation = action
+                    showUnsafeNavigationDialog = true
+                }
+            }
+        }
+
+        if (showUnsafeNavigationDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showUnsafeNavigationDialog = false
+                    pendingNavigation = null
+                },
+                title = { Text("Draft not saved") },
+                text = { Text("The latest changes couldn’t be saved. Leaving now may lose them.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val navigation = pendingNavigation
+                        showUnsafeNavigationDialog = false
+                        pendingNavigation = null
+                        navigation?.invoke()
+                    }) { Text("Leave anyway") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showUnsafeNavigationDialog = false
+                        pendingNavigation = null
+                    }) { Text("Stay") }
+                },
+            )
+        }
 
         LaunchedEffect(selected) {
             isSelectionMode = false
@@ -170,9 +246,11 @@ fun App(
                         actions = {
                             if (selected != ProfileRoute) {
                                 IconButton(onClick = {
-                                    previous = selected
-                                    selected = ProfileRoute
-                                    navController.navigate(ProfileRoute)
+                                    requestNavigation {
+                                        previous = selected
+                                        selected = ProfileRoute
+                                        navController.navigate(ProfileRoute)
+                                    }
                                 }) {
                                     Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                                 }
@@ -186,8 +264,10 @@ fun App(
                     NavigationBarItem(
                         selected = selected == EntriesRoute,
                         onClick = {
-                            selected = EntriesRoute
-                            navController.navigate(EntriesRoute)
+                            requestNavigation {
+                                selected = EntriesRoute
+                                navController.navigate(EntriesRoute)
+                            }
                         },
                         icon = { Text("E") },
                         label = { Text("Entries") },
@@ -195,8 +275,10 @@ fun App(
                     NavigationBarItem(
                         selected = selected == MomentsRoute,
                         onClick = {
-                            selected = MomentsRoute
-                            navController.navigate(MomentsRoute)
+                            requestNavigation {
+                                selected = MomentsRoute
+                                navController.navigate(MomentsRoute)
+                            }
                         },
                         icon = { Text("M") },
                         label = { Text("Moments") },
@@ -204,8 +286,10 @@ fun App(
                     NavigationBarItem(
                         selected = selected == InsightsRoute,
                         onClick = {
-                            selected = InsightsRoute
-                            navController.navigate(InsightsRoute)
+                            requestNavigation {
+                                selected = InsightsRoute
+                                navController.navigate(InsightsRoute)
+                            }
                         },
                         icon = { Text("I") },
                         label = { Text("Insights") },
@@ -213,8 +297,10 @@ fun App(
                     NavigationBarItem(
                         selected = selected == SettingsRoute,
                         onClick = {
-                            selected = SettingsRoute
-                            navController.navigate(SettingsRoute)
+                            requestNavigation {
+                                selected = SettingsRoute
+                                navController.navigate(SettingsRoute)
+                            }
                         },
                         icon = { Text("S") },
                         label = { Text("Settings") },
@@ -227,11 +313,13 @@ fun App(
                     composable<EntriesRoute> {
                         EntriesScreen(
                             repo = repo,
+                            draftRepository = draftRepository,
                             weatherClient = weatherClient,
                             isSelectionMode = isSelectionMode,
                             selectedIds = selectedIds,
                             onSelectionModeChange = { isSelectionMode = it },
                             onSelectionChange = { selectedIds = it },
+                            onExitGuardChange = { editorExitGuard = it },
                         )
                     }
                     composable<MomentsRoute> {
