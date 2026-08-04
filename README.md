@@ -10,6 +10,10 @@ MarkDay is a cross-platform diary and journaling application built with **Kotlin
 - **Rich Content:** Support for rich text and image rendering (via multiplatform-markdown-renderer and Coil).
 - **Sync & Backup (Android/Desktop JVM only):** Google Drive integration for seamless data backups and remote sync. Web (Wasm) support is not implemented yet.
 - **Diary Import/Export:** Export diary entries as sync-compatible local text files and import them later to restore backed-up entries.
+- **Draft Recovery:** New and existing entry edits are restored from device-local autosaved drafts after interruptions.
+
+The draft lifecycle, storage format, recovery invariants, and platform exit behavior are documented in
+[Entry Draft Persistence](docs/entry-drafts.md).
 
 ## Diary Import and Export
 
