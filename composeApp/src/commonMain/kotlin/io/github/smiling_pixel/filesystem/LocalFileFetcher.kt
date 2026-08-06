@@ -9,8 +9,6 @@ import coil3.fetch.Fetcher
 import coil3.fetch.SourceFetchResult
 import coil3.request.Options
 import io.github.smiling_pixel.util.Logger
-import io.github.smiling_pixel.util.e
-import io.github.smiling_pixel.util.w
 import okio.Buffer
 import okio.FileSystem
 import okio.IOException

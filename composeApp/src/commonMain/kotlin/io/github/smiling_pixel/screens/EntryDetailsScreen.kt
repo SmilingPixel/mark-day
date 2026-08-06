@@ -56,8 +56,6 @@ import io.github.smiling_pixel.filesystem.fileManager
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.util.Logger
-import io.github.smiling_pixel.util.e
-import io.github.smiling_pixel.util.w
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate

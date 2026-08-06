@@ -88,6 +88,32 @@ expect object Logger {
     )
 
     /**
+     * Logs a warning-level message.
+     *
+     * @param tag A short tag identifying the log source.
+     * @param message The message to log.
+     * @param throwable Optional throwable details to include with the message.
+     */
+    fun w(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    )
+
+    /**
+     * Logs an error-level message.
+     *
+     * @param tag A short tag identifying the log source.
+     * @param message The message to log.
+     * @param throwable Optional throwable details to include with the message.
+     */
+    fun e(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    )
+
+    /**
      * Sets the minimum severity that will be emitted by this logger.
      *
      * @param level The minimum log level to emit.
@@ -155,31 +181,3 @@ fun Logger.i(
     message: String,
     throwable: Throwable? = null,
 ) = log(LogLevel.INFO, tag, message, throwable)
-
-/**
- * Logs a warning-level message using this [Logger].
- *
- * Shorthand for calling [log] with [LogLevel.WARN].
- *
- * @param tag A short tag identifying the log source.
- * @param message The message to be logged.
- */
-fun Logger.w(
-    tag: String,
-    message: String,
-    throwable: Throwable? = null,
-) = log(LogLevel.WARN, tag, message, throwable)
-
-/**
- * Logs an error-level message using this [Logger].
- *
- * Shorthand for calling [log] with [LogLevel.ERROR].
- *
- * @param tag A short tag identifying the log source.
- * @param message The message to be logged.
- */
-fun Logger.e(
-    tag: String,
-    message: String,
-    throwable: Throwable? = null,
-) = log(LogLevel.ERROR, tag, message, throwable)

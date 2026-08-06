@@ -31,6 +31,14 @@ actual object Logger {
         println("[$level] $tag: $fullMessage")
     }
 
+    actual fun w(tag: String, message: String, throwable: Throwable?) {
+        log(LogLevel.WARN, tag, message, throwable)
+    }
+
+    actual fun e(tag: String, message: String, throwable: Throwable?) {
+        log(LogLevel.ERROR, tag, message, throwable)
+    }
+
     actual suspend fun exportPersistedLogs(): LogExportResult = LogExportResult.Unavailable
 
     actual suspend fun clearPersistedLogs() {

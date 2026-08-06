@@ -51,7 +51,6 @@ import io.github.smiling_pixel.draft.EntryDraftRepository
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.sync.startAutoSync
 import io.github.smiling_pixel.util.Logger
-import io.github.smiling_pixel.util.e
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime

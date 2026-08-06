@@ -5,7 +5,6 @@ import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.model.WeatherInfo
 import io.github.smiling_pixel.preference.SettingsRepository
 import io.github.smiling_pixel.util.Logger
-import io.github.smiling_pixel.util.e
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation

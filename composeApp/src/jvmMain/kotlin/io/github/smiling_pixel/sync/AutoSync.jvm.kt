@@ -4,7 +4,6 @@ import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.util.Logger
-import io.github.smiling_pixel.util.e
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
