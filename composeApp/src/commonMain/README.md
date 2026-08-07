@@ -9,5 +9,7 @@ All UI presentation and core business logic reside here:
 - **Navigation:** Core application routing logic using Compose Navigation.
 - **Models & Logic:** Domain entities, view models, and state management.
 - **Networking/Data Interfaces:** Shared expect/actual declarations and DB interfaces (Room).
+- **Draft Recovery:** Shared draft models, repository behavior, autosave coordination, and editor exit protection. See
+  [`docs/entry-drafts.md`](../../../docs/entry-drafts.md) for lifecycle and storage invariants.
 
 Modify code here to implement features that will automatically propagate to all application targets.

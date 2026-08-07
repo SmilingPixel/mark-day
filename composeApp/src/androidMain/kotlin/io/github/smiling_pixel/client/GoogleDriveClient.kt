@@ -14,7 +14,6 @@ import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
 import io.github.smiling_pixel.preference.AndroidContextProvider
 import io.github.smiling_pixel.util.Logger
-import io.github.smiling_pixel.util.e
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
