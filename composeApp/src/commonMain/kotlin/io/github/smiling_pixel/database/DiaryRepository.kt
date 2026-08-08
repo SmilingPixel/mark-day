@@ -3,6 +3,7 @@ package io.github.smiling_pixel.database
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.preference.SettingsRepository
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.sync.clearLocalDeletionTombstone
 import io.github.smiling_pixel.sync.recordLocalDeletionTombstone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,5 +68,15 @@ class DiaryRepository(
             recordLocalDeletionTombstone(entry.syncId, settings = settings)
         }
         dao.delete(entry)
+    }
+
+    /**
+     * Restores a previously deleted diary entry and removes its local sync tombstone.
+     *
+     * @param entry The entry snapshot to restore.
+     */
+    suspend fun restore(entry: DiaryEntry) {
+        dao.insert(entry)
+        clearLocalDeletionTombstone(entry.syncId, settings = settings)
     }
 }
