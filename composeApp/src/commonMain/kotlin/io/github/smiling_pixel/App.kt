@@ -17,6 +17,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +49,7 @@ import io.github.smiling_pixel.draft.PlatformDraftExitProtection
 import io.github.smiling_pixel.draft.getEntryDraftRepository
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
+import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.screens.EntriesScreen
 import io.github.smiling_pixel.screens.InsightsScreen
@@ -54,6 +59,7 @@ import io.github.smiling_pixel.screens.SettingsScreen
 import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.util.Logger
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -103,6 +109,7 @@ fun App(
     val settingsRepository = remember { getSettingsRepository() }
     val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
     val isPureBlackEnabled by settingsRepository.isPureBlackEnabled.collectAsState(initial = null)
+    val isCloudSyncEnabled by settingsRepository.isCloudSyncEnabled.collectAsState(initial = false)
     val logLevel by settingsRepository.logLevel.collectAsState(initial = null)
     val isLogPersistenceEnabled by settingsRepository.isLogPersistenceEnabled.collectAsState(initial = null)
 
@@ -132,6 +139,7 @@ fun App(
             }
         val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
+        val snackbarHostState = remember { SnackbarHostState() }
         val navController = rememberNavController()
         var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
         // remember previous to return from profile
@@ -142,6 +150,10 @@ fun App(
         var editorExitGuard by remember { mutableStateOf<EditorExitGuard?>(null) }
         var showUnsafeNavigationDialog by remember { mutableStateOf(false) }
         var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
+        var showDeleteConfirmation by remember { mutableStateOf(false) }
+        var pendingDeletedEntries by remember { mutableStateOf<List<DiaryEntry>>(emptyList()) }
+        var undoToken by remember { mutableStateOf(0) }
+        var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
 
         PlatformDraftExitProtection(editorExitGuard)
         // Desktop owns its Window outside this composable, so publish the same guard used by in-app navigation to the
@@ -194,6 +206,64 @@ fun App(
             )
         }
 
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Delete ${selectedIds.size} entries?") },
+                text = {
+                    Text(
+                        if (isCloudSyncEnabled) {
+                            "Cloud Sync is enabled. This deletion will also propagate to Google Drive on the next sync."
+                        } else {
+                            "Cloud Sync is disabled, so this will only delete local copies. Existing Google Drive copies will not be changed."
+                        },
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirmation = false
+                            scope.launch {
+                                val entriesToDelete = repo.getAll().filter { it.syncId in selectedIds }
+                                if (entriesToDelete.isEmpty()) {
+                                    isSelectionMode = false
+                                    selectedIds = emptySet()
+                                    return@launch
+                                }
+
+                                entriesToDelete.forEach { repo.delete(it) }
+                                isSelectionMode = false
+                                selectedIds = emptySet()
+                                pendingDeletedEntries = entriesToDelete
+                                undoToken += 1
+                                val token = undoToken
+                                undoSnackbarJob?.cancel()
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                undoSnackbarJob =
+                                    scope.launch {
+                                        val result =
+                                            snackbarHostState.showSnackbar(
+                                                message = "${entriesToDelete.size} entries deleted",
+                                                actionLabel = "Undo",
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                        if (result == SnackbarResult.ActionPerformed && token == undoToken) {
+                                            pendingDeletedEntries.forEach { repo.restore(it) }
+                                        }
+                                        if (token == undoToken) {
+                                            pendingDeletedEntries = emptyList()
+                                        }
+                                    }
+                            }
+                        },
+                    ) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
+                },
+            )
+        }
+
         LaunchedEffect(selected) {
             isSelectionMode = false
             selectedIds = emptySet()
@@ -204,6 +274,7 @@ fun App(
                 Modifier
                     .safeContentPadding()
                     .fillMaxSize(),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 if (isSelectionMode) {
                     CenterAlignedTopAppBar(
@@ -218,13 +289,7 @@ fun App(
                         },
                         actions = {
                             IconButton(onClick = {
-                                scope.launch {
-                                    val currentEntries = repo.entries.value
-                                    val entriesToDelete = currentEntries.filter { it.syncId in selectedIds }
-                                    entriesToDelete.forEach { repo.delete(it) }
-                                    isSelectionMode = false
-                                    selectedIds = emptySet()
-                                }
+                                showDeleteConfirmation = true
                             }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete Selected")
                             }
