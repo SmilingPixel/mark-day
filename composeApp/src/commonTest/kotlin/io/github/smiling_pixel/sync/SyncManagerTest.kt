@@ -11,6 +11,7 @@ import io.github.smiling_pixel.util.LogLevel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -214,6 +215,66 @@ class SyncManagerTest {
             val tombstoneFiles = client.listFiles(null).filter { it.name.startsWith("markday_tombstone_") }
             assertEquals(1, tombstoneFiles.size)
             assertTrue(tombstoneFiles.first().name.startsWith("markday_tombstone_${syncId}_"))
+        }
+
+    @Test
+    fun restore_reinsertsEntryAndClearsItsTombstone() =
+        runTest {
+            val settings = createTestSettingsRepository()
+            val syncId = "353e4567-e89b-12d3-a456-426614174000"
+            val entry = diaryEntry(syncId, "Restored", "Content", 1_000, 2_000)
+            val dao = InMemoryDiaryDao(initial = listOf(entry))
+            val repo = DiaryRepository(dao, settings = settings)
+
+            repo.delete(entry)
+            recordLocalDeletionTombstone(syncId, deletedAtEpochMillis = 2_000, settings = settings)
+            repo.restore(entry)
+
+            assertEquals(listOf(entry), dao.getAll())
+            assertEquals(null, settings.cloudSyncDeletionTombstonesJson.first())
+        }
+
+    @Test
+    fun clearLocalDeletionTombstone_preservesOtherEntries() =
+        runTest {
+            val settings = createTestSettingsRepository()
+            val firstSyncId = "363e4567-e89b-12d3-a456-426614174000"
+            val secondSyncId = "373e4567-e89b-12d3-a456-426614174000"
+
+            recordLocalDeletionTombstone(firstSyncId, deletedAtEpochMillis = 1_000, settings = settings)
+            recordLocalDeletionTombstone(secondSyncId, deletedAtEpochMillis = 2_000, settings = settings)
+            clearLocalDeletionTombstone(firstSyncId, settings)
+
+            val tombstones = settings.cloudSyncDeletionTombstonesJson.first()
+            assertTrue(tombstones != null)
+            assertTrue(firstSyncId !in tombstones.orEmpty())
+            assertTrue(secondSyncId in tombstones.orEmpty())
+        }
+
+    @Test
+    fun restoredEntry_syncsWithoutItsOldDeletionTombstone() =
+        runTest {
+            val settings = createTestSettingsRepository()
+            configureSyncSettings(settings, enabled = true, path = "/")
+            val syncId = "383e4567-e89b-12d3-a456-426614174000"
+            val entry = diaryEntry(syncId, "Restored", "Content", 1_000, 2_000)
+            val dao = InMemoryDiaryDao(initial = listOf(entry))
+            val repo = DiaryRepository(dao, settings = settings)
+            val client = FakeCloudDriveClient(authorized = true)
+            client.seedFile(
+                name = remoteEntryFileName(syncId, 2_000),
+                content = encodeEntryForSync(entry),
+            )
+
+            repo.delete(entry)
+            recordLocalDeletionTombstone(syncId, deletedAtEpochMillis = 2_000, settings = settings)
+            repo.restore(entry)
+
+            val result = performCloudSync(client, repo, dao.getAll(), settings)
+
+            assertEquals(SyncResult(uploaded = 0, downloaded = 0, unchanged = 1), result)
+            assertEquals(listOf(entry), dao.getAll())
+            assertTrue(client.listFiles(null).any { it.name == remoteEntryFileName(syncId, 2_000) })
         }
 
     @Test
