@@ -59,3 +59,4 @@ When modifying or generating code, adhere to the following:
     *   **Web (Wasm)**: `./gradlew wasmJsBrowserRun` (Run in browser)
     *   **iOS**: **(Suspended)** Open `iosApp/iosApp.xcodeproj` in Xcode and run.
     *   **Tests**: `./gradlew check` (Run all checks) or `./gradlew allTests` (Run all tests)
+    *   **Testing guidance**: Avoid running the full test suite whenever possible. Run focused test cases instead to reduce unnecessary execution time.
