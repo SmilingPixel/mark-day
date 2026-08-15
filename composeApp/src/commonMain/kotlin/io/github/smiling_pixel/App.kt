@@ -215,7 +215,8 @@ fun App(
                         if (isCloudSyncEnabled) {
                             "Cloud Sync is enabled. This deletion will also propagate to Google Drive on the next sync."
                         } else {
-                            "Cloud Sync is disabled, so this will only delete local copies. Existing Google Drive copies will not be changed."
+                            "Cloud Sync is disabled. This deletion is local for now, but it may propagate to Google " +
+                                "Drive if Cloud Sync is enabled later."
                         },
                     )
                 },
