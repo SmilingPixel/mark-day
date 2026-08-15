@@ -224,6 +224,22 @@ suspend fun recordLocalDeletionTombstone(
     }
 }
 
+/**
+ * Clears a local deletion tombstone for an entry that has been restored.
+ *
+ * @param syncId Stable cross-device entry identifier.
+ * @param settings Settings repository containing the persisted tombstones.
+ */
+suspend fun clearLocalDeletionTombstone(
+    syncId: String,
+    settings: SettingsRepository = getSettingsRepository(),
+) {
+    val tombstones = loadLocalDeletionTombstones(settings).toMutableMap()
+    if (tombstones.remove(syncId) != null) {
+        saveLocalDeletionTombstones(settings, tombstones)
+    }
+}
+
 private suspend fun getOrCreateFolderByPath(
     client: CloudDriveClient,
     path: String,
