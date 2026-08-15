@@ -235,6 +235,46 @@ class SyncManagerTest {
         }
 
     @Test
+    fun restore_whenOriginalIdWasReused_assignsNewLocalId() =
+        runTest {
+            val settings = createTestSettingsRepository()
+            val restoredSyncId = "393e4567-e89b-12d3-a456-426614174000"
+            val replacementSyncId = "3a3e4567-e89b-12d3-a456-426614174000"
+            val restoredEntry = diaryEntry(restoredSyncId, "Restored", "Original content", 1_000, 2_000)
+            val replacementEntry = diaryEntry(replacementSyncId, "Replacement", "New content", 3_000, 4_000)
+            val dao = InMemoryDiaryDao(initial = listOf(replacementEntry))
+            val repo = DiaryRepository(dao, settings = settings)
+            recordLocalDeletionTombstone(restoredSyncId, deletedAtEpochMillis = 5_000, settings = settings)
+
+            repo.restore(restoredEntry)
+
+            val savedEntries = dao.getAll()
+            assertEquals(2, savedEntries.size)
+            assertEquals(replacementEntry, savedEntries.first { it.syncId == replacementSyncId })
+            assertEquals(2, savedEntries.first { it.syncId == restoredSyncId }.id)
+            assertEquals(null, settings.cloudSyncDeletionTombstonesJson.first())
+        }
+
+    @Test
+    fun restore_whenSyncIdAlreadyExists_updatesExistingLocalRow() =
+        runTest {
+            val settings = createTestSettingsRepository()
+            val syncId = "3b3e4567-e89b-12d3-a456-426614174000"
+            val restoredEntry = diaryEntry(syncId, "Restored", "Original content", 1_000, 2_000)
+            val downloadedEntry = restoredEntry.copy(id = 7, title = "Downloaded", content = "Remote content")
+            val dao = InMemoryDiaryDao(initial = listOf(downloadedEntry))
+            val repo = DiaryRepository(dao, settings = settings)
+            recordLocalDeletionTombstone(syncId, deletedAtEpochMillis = 5_000, settings = settings)
+
+            repo.restore(restoredEntry)
+
+            val savedEntry = dao.getAll().single()
+            assertEquals(7, savedEntry.id)
+            assertEquals(restoredEntry.copy(id = 7), savedEntry)
+            assertEquals(null, settings.cloudSyncDeletionTombstonesJson.first())
+        }
+
+    @Test
     fun clearLocalDeletionTombstone_preservesOtherEntries() =
         runTest {
             val settings = createTestSettingsRepository()
