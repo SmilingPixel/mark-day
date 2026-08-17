@@ -6,7 +6,10 @@ import kotlinx.browser.window
 import org.w3c.dom.events.Event
 
 @Composable
-actual fun PlatformDraftExitProtection(guard: EditorExitGuard?) {
+actual fun PlatformDraftExitProtection(
+    guard: EditorExitGuard?,
+    onBackRequest: (() -> Unit)?,
+) {
     DisposableEffect(guard?.hasUnpersistedChanges) {
         if (guard?.hasUnpersistedChanges != true) {
             return@DisposableEffect onDispose {}
