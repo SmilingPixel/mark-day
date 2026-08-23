@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,11 +54,15 @@ import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.preference.getSettingsRepository
+import io.github.smiling_pixel.screens.DiarySyncDialogs
 import io.github.smiling_pixel.screens.EntriesScreen
 import io.github.smiling_pixel.screens.InsightsScreen
 import io.github.smiling_pixel.screens.MomentsScreen
 import io.github.smiling_pixel.screens.ProfileScreen
+import io.github.smiling_pixel.screens.SearchScreen
 import io.github.smiling_pixel.screens.SettingsScreen
+import io.github.smiling_pixel.screens.rememberDiarySyncState
+import io.github.smiling_pixel.sync.startAutoSync
 import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.util.Logger
@@ -68,6 +75,10 @@ sealed interface AppRoute
 
 @Serializable
 object EntriesRoute : AppRoute
+
+/** Destination for searching and filtering diary entries. */
+@Serializable
+object SearchRoute : AppRoute
 
 @Serializable
 object MomentsRoute : AppRoute
@@ -139,6 +150,7 @@ fun App(
             }
         val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
+        val diarySyncState = rememberDiarySyncState(repo)
         val snackbarHostState = remember { SnackbarHostState() }
         val navController = rememberNavController()
         var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
@@ -147,6 +159,8 @@ fun App(
 
         var isSelectionMode by remember { mutableStateOf(false) }
         var selectedIds by remember { mutableStateOf(emptySet<String>()) }
+        var isEntriesListVisible by remember { mutableStateOf(false) }
+        var searchSelectedEntrySyncId by rememberSaveable { mutableStateOf<String?>(null) }
         var editorExitGuard by remember { mutableStateOf<EditorExitGuard?>(null) }
         var showUnsafeNavigationDialog by remember { mutableStateOf(false) }
         var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -155,7 +169,28 @@ fun App(
         var undoToken by remember { mutableStateOf(0) }
         var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
 
-        PlatformDraftExitProtection(editorExitGuard)
+        DisposableEffect(repo) {
+            val autoSyncJob = startAutoSync(repo)
+            onDispose { autoSyncJob?.cancel() }
+        }
+        DiarySyncDialogs(diarySyncState)
+
+        PlatformDraftExitProtection(
+            guard = editorExitGuard,
+            onBackRequest =
+                if (selected == SearchRoute) {
+                    {
+                        if (searchSelectedEntrySyncId != null) {
+                            searchSelectedEntrySyncId = null
+                        } else {
+                            selected = EntriesRoute
+                            navController.popBackStack()
+                        }
+                    }
+                } else {
+                    null
+                },
+        )
         // Desktop owns its Window outside this composable, so publish the same guard used by in-app navigation to the
         // host. DisposableEffect also clears stale callbacks when the Entries destination leaves composition.
         DisposableEffect(editorExitGuard) {
@@ -302,6 +337,7 @@ fun App(
                             val title =
                                 when (selected) {
                                     EntriesRoute -> "Entries"
+                                    SearchRoute -> "Search"
                                     MomentsRoute -> "Moments"
                                     InsightsRoute -> "Insights"
                                     SettingsRoute -> "Settings"
@@ -309,8 +345,33 @@ fun App(
                                 }
                             Text(title)
                         },
+                        navigationIcon = {
+                            if (selected == SearchRoute) {
+                                IconButton(onClick = {
+                                    requestNavigation {
+                                        if (searchSelectedEntrySyncId != null) {
+                                            searchSelectedEntrySyncId = null
+                                        } else {
+                                            selected = EntriesRoute
+                                            navController.popBackStack()
+                                        }
+                                    }
+                                }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                }
+                            }
+                        },
                         actions = {
-                            if (selected != ProfileRoute) {
+                            if (selected == EntriesRoute && isEntriesListVisible) {
+                                IconButton(onClick = {
+                                    searchSelectedEntrySyncId = null
+                                    selected = SearchRoute
+                                    navController.navigate(SearchRoute)
+                                }) {
+                                    Icon(Icons.Default.Search, contentDescription = "Search entries")
+                                }
+                            }
+                            if (selected != ProfileRoute && selected != SearchRoute) {
                                 IconButton(onClick = {
                                     requestNavigation {
                                         previous = selected
@@ -328,11 +389,17 @@ fun App(
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(
-                        selected = selected == EntriesRoute,
+                        selected = selected == EntriesRoute || selected == SearchRoute,
                         onClick = {
                             requestNavigation {
-                                selected = EntriesRoute
-                                navController.navigate(EntriesRoute)
+                                if (selected == SearchRoute) {
+                                    searchSelectedEntrySyncId = null
+                                    selected = EntriesRoute
+                                    navController.popBackStack()
+                                } else {
+                                    selected = EntriesRoute
+                                    navController.navigate(EntriesRoute)
+                                }
                             }
                         },
                         icon = { Text("E") },
@@ -385,6 +452,21 @@ fun App(
                             selectedIds = selectedIds,
                             onSelectionModeChange = { isSelectionMode = it },
                             onSelectionChange = { selectedIds = it },
+                            isSyncing = diarySyncState.isSyncing,
+                            onSyncRequest = diarySyncState::requestSync,
+                            onListVisibilityChange = { isEntriesListVisible = it },
+                            onExitGuardChange = { editorExitGuard = it },
+                        )
+                    }
+                    composable<SearchRoute> {
+                        SearchScreen(
+                            repo = repo,
+                            draftRepository = draftRepository,
+                            weatherClient = weatherClient,
+                            selectedEntrySyncId = searchSelectedEntrySyncId,
+                            onSelectedEntryChange = { searchSelectedEntrySyncId = it },
+                            isSyncing = diarySyncState.isSyncing,
+                            onSyncRequest = diarySyncState::requestSync,
                             onExitGuardChange = { editorExitGuard = it },
                         )
                     }

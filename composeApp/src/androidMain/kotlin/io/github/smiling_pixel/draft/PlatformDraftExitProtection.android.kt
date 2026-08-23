@@ -4,8 +4,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 
 @Composable
-actual fun PlatformDraftExitProtection(guard: EditorExitGuard?) {
-    BackHandler(enabled = guard != null) {
-        guard?.requestClose?.invoke()
+actual fun PlatformDraftExitProtection(
+    guard: EditorExitGuard?,
+    onBackRequest: (() -> Unit)?,
+) {
+    BackHandler(enabled = guard != null || onBackRequest != null) {
+        guard?.requestClose?.invoke() ?: onBackRequest?.invoke()
     }
 }

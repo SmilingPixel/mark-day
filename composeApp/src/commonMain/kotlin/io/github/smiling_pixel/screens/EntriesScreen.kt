@@ -33,7 +33,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,16 +42,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.smiling_pixel.client.WeatherClient
-import io.github.smiling_pixel.client.getCloudDriveClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.draft.EditorExitGuard
 import io.github.smiling_pixel.draft.EntryDraftKey
 import io.github.smiling_pixel.draft.EntryDraftRepository
 import io.github.smiling_pixel.model.DiaryEntry
-import io.github.smiling_pixel.sync.startAutoSync
 import io.github.smiling_pixel.util.Logger
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 
 /**
@@ -65,6 +60,9 @@ import kotlin.time.ExperimentalTime
  * @param selectedIds Stable IDs of selected entries.
  * @param onSelectionModeChange Updates multi-entry selection mode.
  * @param onSelectionChange Updates selected entry IDs.
+ * @param isSyncing Whether a cloud synchronization operation is running.
+ * @param onSyncRequest Requests cloud synchronization.
+ * @param onListVisibilityChange Reports whether the ordinary entry list is currently visible.
  * @param onExitGuardChange Reports the active editor's exit protection.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalTime::class)
@@ -77,33 +75,25 @@ fun EntriesScreen(
     selectedIds: Set<String>,
     onSelectionModeChange: (Boolean) -> Unit,
     onSelectionChange: (Set<String>) -> Unit,
+    isSyncing: Boolean = false,
+    onSyncRequest: () -> Unit = {},
+    onListVisibilityChange: (Boolean) -> Unit = {},
     onExitGuardChange: (EditorExitGuard?) -> Unit = {},
 ) {
     val entriesState by repo.entries.collectAsState()
-    val scope = rememberCoroutineScope()
-
-    DisposableEffect(repo) {
-        val autoSyncJob = startAutoSync(repo)
-        onDispose {
-            autoSyncJob?.cancel()
-        }
-    }
 
     // The stable ID is saveable; the entry itself is always resolved from repository state.
     var selectedEntrySyncId by rememberSaveable { mutableStateOf<String?>(null) }
     var recentlyCommittedEntry by remember { mutableStateOf<DiaryEntry?>(null) }
     var isCreating by rememberSaveable { mutableStateOf(false) }
     var initialDraftChecked by remember { mutableStateOf(false) }
-    var isSyncing by remember { mutableStateOf(false) }
-    var syncSummary by remember { mutableStateOf<String?>(null) }
-    var syncError by remember { mutableStateOf<String?>(null) }
     var draftRecoveryError by remember { mutableStateOf<String?>(null) }
     val selectedEntry =
-        entriesState.firstOrNull { it.syncId == selectedEntrySyncId }
-            ?: recentlyCommittedEntry?.takeIf { it.syncId == selectedEntrySyncId }
+        recentlyCommittedEntry?.takeIf { it.syncId == selectedEntrySyncId }
+            ?: entriesState.firstOrNull { it.syncId == selectedEntrySyncId }
 
-    LaunchedEffect(entriesState, selectedEntrySyncId) {
-        if (entriesState.any { it.syncId == selectedEntrySyncId }) {
+    LaunchedEffect(entriesState, recentlyCommittedEntry) {
+        if (recentlyCommittedEntry != null && entriesState.any { it == recentlyCommittedEntry }) {
             recentlyCommittedEntry = null
         }
     }
@@ -129,24 +119,6 @@ fun EntriesScreen(
         }
     }
 
-    if (syncSummary != null) {
-        AlertDialog(
-            onDismissRequest = { syncSummary = null },
-            title = { Text("Sync Summary") },
-            text = { Text(syncSummary!!) },
-            confirmButton = { Button(onClick = { syncSummary = null }) { Text("OK") } },
-        )
-    }
-
-    if (syncError != null) {
-        AlertDialog(
-            onDismissRequest = { syncError = null },
-            title = { Text("Sync Error") },
-            text = { Text(syncError!!) },
-            confirmButton = { Button(onClick = { syncError = null }) { Text("OK") } },
-        )
-    }
-
     if (draftRecoveryError != null) {
         AlertDialog(
             onDismissRequest = { draftRecoveryError = null },
@@ -156,26 +128,12 @@ fun EntriesScreen(
         )
     }
 
-    val performSync = {
-        if (!isSyncing) {
-            isSyncing = true
-            scope.launch {
-                try {
-                    val result =
-                        io.github.smiling_pixel.sync.performCloudSync(
-                            client = getCloudDriveClient(),
-                            repo = repo,
-                            localEntries = entriesState,
-                        )
-                    syncSummary =
-                        "Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}\nUnchanged: ${result.unchanged}"
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    syncError = e.message ?: "An unknown error occurred during sync"
-                } finally {
-                    isSyncing = false
-                }
+    val isListVisible = initialDraftChecked && !isCreating && selectedEntrySyncId == null
+    DisposableEffect(isListVisible) {
+        onListVisibilityChange(isListVisible)
+        onDispose {
+            if (isListVisible) {
+                onListVisibilityChange(false)
             }
         }
     }
@@ -195,7 +153,7 @@ fun EntriesScreen(
                 entry = selectedEntry,
                 weatherClient = weatherClient,
                 isSyncing = isSyncing,
-                onSyncRequest = { performSync() },
+                onSyncRequest = onSyncRequest,
                 draftRepository = draftRepository,
                 onExitGuardChange = onExitGuardChange,
                 onSave = { entry ->
@@ -240,7 +198,7 @@ fun EntriesScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         FloatingActionButton(
-                            onClick = { performSync() },
+                            onClick = onSyncRequest,
                             shape = RoundedCornerShape(16.dp),
                         ) {
                             if (isSyncing) {
