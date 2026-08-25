@@ -1,6 +1,7 @@
 package io.github.smiling_pixel.database
 
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.model.LoadState
 import io.github.smiling_pixel.preference.SettingsRepository
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.sync.clearLocalDeletionTombstone
@@ -24,17 +25,40 @@ class DiaryRepository(
     private val _entries = MutableStateFlow<List<DiaryEntry>>(emptyList())
     val entries: StateFlow<List<DiaryEntry>> = _entries
 
+    private val _entriesState = MutableStateFlow<LoadState<List<DiaryEntry>>>(LoadState.Loading)
+
+    /** Emits loading, content, or error state for the authoritative entry collection. */
+    val entriesState: StateFlow<LoadState<List<DiaryEntry>>> = _entriesState
+
     init {
         // Collect the DAO's flow and update our StateFlow so Compose can collect it as state
         scope.launch {
-            dao.entriesFlow.collect { list ->
-                _entries.value = list
+            try {
+                dao.entriesFlow.collect { list ->
+                    _entries.value = list
+                    _entriesState.value = LoadState.Content(list)
+                }
+            } catch (e: Exception) {
+                _entriesState.value =
+                    LoadState.Error(
+                        message = "Your entries could not be loaded.",
+                        technicalDetails = e.message,
+                    )
             }
         }
         // initial load in case DAO isn't Flow-backed
         scope.launch {
-            val list = dao.getAll()
-            if (list.isNotEmpty()) _entries.value = list
+            try {
+                val list = dao.getAll()
+                _entries.value = list
+                _entriesState.value = LoadState.Content(list)
+            } catch (e: Exception) {
+                _entriesState.value =
+                    LoadState.Error(
+                        message = "Your entries could not be loaded.",
+                        technicalDetails = e.message,
+                    )
+            }
         }
     }
 

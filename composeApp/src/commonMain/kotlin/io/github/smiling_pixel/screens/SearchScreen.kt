@@ -60,6 +60,7 @@ import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.draft.EditorExitGuard
 import io.github.smiling_pixel.draft.EntryDraftRepository
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.model.LoadState
 import io.github.smiling_pixel.search.EntrySearchCriteria
 import io.github.smiling_pixel.search.EntrySortField
 import io.github.smiling_pixel.search.SearchTextPreview
@@ -100,6 +101,7 @@ fun SearchScreen(
     onExitGuardChange: (EditorExitGuard?) -> Unit = {},
 ) {
     val entries by repo.entries.collectAsState()
+    val entriesLoadState by repo.entriesState.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     var startDateText by rememberSaveable { mutableStateOf<String?>(null) }
     var endDateText by rememberSaveable { mutableStateOf<String?>(null) }
@@ -210,6 +212,17 @@ fun SearchScreen(
         return
     }
 
+    if (entriesLoadState is LoadState.Loading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+    if (entriesLoadState is LoadState.Error) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text((entriesLoadState as LoadState.Error).message, color = MaterialTheme.colorScheme.error)
+        }
+        return
+    }
+
     Column(
         modifier =
             Modifier
@@ -314,7 +327,14 @@ fun SearchScreen(
 
             if (results.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No entries found", style = MaterialTheme.typography.bodyLarge)
+                    val queryText = appliedCriteria.normalizedQuery
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (queryText.isNotEmpty()) "No entries match \"$queryText\"" else "No entries match your filters",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        TextButton(onClick = { clearSearch() }) { Text("Clear filters") }
+                    }
                 }
             } else {
                 LazyColumn(
