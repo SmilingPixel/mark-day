@@ -5,6 +5,8 @@ package io.github.smiling_pixel.client
  * CURRENTLY NOT IMPLEMENTED.
  */
 class GoogleDriveClient : CloudDriveClient {
+    override val isSupported: Boolean = false
+
     override suspend fun listFiles(parentId: String?): List<DriveFile> =
         throw NotImplementedError("Google Drive is not supported on Web target yet.")
 

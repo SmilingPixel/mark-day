@@ -68,7 +68,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(repo: DiaryRepository) {
+fun SettingsScreen(repo: DiaryRepository, onOperationEvent: (OperationEvent) -> Unit = {}) {
     val scope = rememberCoroutineScope()
     // Remember the settings repository so recomposition does not recreate a new DataStore-backed
     // repository instance and resubscribe all mapped flows unnecessarily.
@@ -108,14 +108,16 @@ fun SettingsScreen(repo: DiaryRepository) {
             // auto sync run later. If immediate post-import sync is added in the future, do not pass
             // repo.entries.value directly right after insert/update. DiaryRepository refreshes that
             // StateFlow from the DAO asynchronously, so it can briefly contain a pre-import snapshot.
-            diagnosticsMessage =
-                buildImportDiagnosticsMessage(
-                    result = result,
-                )
+            onOperationEvent(
+                OperationEvent(
+                    message = "Diary import complete: ${result.changedEntries} entries changed.",
+                    technicalDetails = buildImportDiagnosticsMessage(result),
+                ),
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            diagnosticsMessage = "Diary entry import failed: ${e.message ?: "Unknown error"}."
+            onOperationEvent(OperationEvent("Diary entry import failed.", e.message))
         }
     }
 
@@ -123,7 +125,7 @@ fun SettingsScreen(repo: DiaryRepository) {
         rememberFilePicker { platformFiles ->
             scope.launch {
                 if (!isDiaryImportAvailable) {
-                    diagnosticsMessage = "Diary entry import is unavailable on this platform."
+                    onOperationEvent(OperationEvent("Diary entry import is unavailable on this platform."))
                     return@launch
                 }
 
@@ -136,8 +138,7 @@ fun SettingsScreen(repo: DiaryRepository) {
                     }
                 val preview = previewDiaryEntryImport(files, repo)
                 if (!preview.hasImportableEntries) {
-                    diagnosticsMessage =
-                        "No diary entries to import. Ignored ${preview.invalidFileNames.size} invalid files."
+                    onOperationEvent(OperationEvent("No diary entries to import.", "Ignored ${preview.invalidFileNames.size} invalid files."))
                     return@launch
                 }
 
@@ -155,6 +156,11 @@ fun SettingsScreen(repo: DiaryRepository) {
             isCheckingAuth = true
             scope.launch {
                 try {
+                    if (!cloudDriveClient.isSupported) {
+                        isAuthorized = false
+                        userInfo = null
+                        return@launch
+                    }
                     isAuthorized = cloudDriveClient.isAuthorized()
                     if (isAuthorized) {
                         userInfo = cloudDriveClient.getUserInfo()
@@ -357,7 +363,12 @@ fun SettingsScreen(repo: DiaryRepository) {
             )
         }
 
-        if (isAuthorized) {
+        if (!cloudDriveClient.isSupported) {
+            Text(
+                text = "Google Drive sync is unavailable on this platform.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (isAuthorized) {
             Text(
                 text = "Connected to Google Drive",
                 color = MaterialTheme.colorScheme.primary,
@@ -589,7 +600,7 @@ fun SettingsScreen(repo: DiaryRepository) {
                     if (isDiaryImportAvailable) {
                         diaryImportPicker.launch()
                     } else {
-                        diagnosticsMessage = "Diary entry import is unavailable on this platform."
+                        onOperationEvent(OperationEvent("Diary entry import is unavailable on this platform."))
                     }
                 },
             ) {
@@ -598,10 +609,9 @@ fun SettingsScreen(repo: DiaryRepository) {
             Button(
                 onClick = {
                     scope.launch {
-                        diagnosticsMessage =
-                            when (val result = exportDiaryEntries(repo.entries.value)) {
+                        val message = when (val result = exportDiaryEntries(repo.entries.value)) {
                                 is DiaryEntryExportResult.Success -> {
-                                    "Exported ${result.fileCount} diary entries to ${result.destinationDescription}."
+                                    "Exported ${result.fileCount} diary entries."
                                 }
                                 DiaryEntryExportResult.NoEntries -> "No diary entries to export."
                                 DiaryEntryExportResult.Unavailable -> {
@@ -609,6 +619,7 @@ fun SettingsScreen(repo: DiaryRepository) {
                                 }
                                 is DiaryEntryExportResult.Failure -> result.message
                             }
+                        onOperationEvent(OperationEvent(message))
                     }
                 },
             ) {
