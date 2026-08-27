@@ -25,6 +25,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -54,7 +56,6 @@ import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.preference.getSettingsRepository
-import io.github.smiling_pixel.screens.DiarySyncDialogs
 import io.github.smiling_pixel.screens.EntriesScreen
 import io.github.smiling_pixel.screens.InsightsScreen
 import io.github.smiling_pixel.screens.MomentsScreen
@@ -62,6 +63,7 @@ import io.github.smiling_pixel.screens.ProfileScreen
 import io.github.smiling_pixel.screens.SearchScreen
 import io.github.smiling_pixel.screens.SettingsScreen
 import io.github.smiling_pixel.screens.rememberDiarySyncState
+import io.github.smiling_pixel.screens.OperationEvent
 import io.github.smiling_pixel.sync.startAutoSync
 import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.theme.ThemeMode
@@ -125,6 +127,12 @@ fun App(
     val isLogPersistenceEnabled by settingsRepository.isLogPersistenceEnabled.collectAsState(initial = null)
 
     if (themeMode == null || isPureBlackEnabled == null || logLevel == null || isLogPersistenceEnabled == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("MarkDay", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
+                CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
+            }
+        }
         return
     }
 
@@ -150,7 +158,9 @@ fun App(
             }
         val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
-        val diarySyncState = rememberDiarySyncState(repo)
+        var pendingOperation by remember { mutableStateOf<OperationEvent?>(null) }
+        var detailsOperation by remember { mutableStateOf<OperationEvent?>(null) }
+        val diarySyncState = rememberDiarySyncState(repo) { pendingOperation = it }
         val snackbarHostState = remember { SnackbarHostState() }
         val navController = rememberNavController()
         var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
@@ -173,7 +183,30 @@ fun App(
             val autoSyncJob = startAutoSync(repo)
             onDispose { autoSyncJob?.cancel() }
         }
-        DiarySyncDialogs(diarySyncState)
+        detailsOperation?.let { event ->
+            AlertDialog(
+                onDismissRequest = { detailsOperation = null },
+                title = { Text("Details") },
+                text = { Text(event.technicalDetails ?: "No additional details are available.") },
+                confirmButton = {
+                    if (event.retry != null) {
+                        TextButton(
+                            onClick = {
+                                detailsOperation = null
+                                event.retry.invoke()
+                            },
+                        ) { Text("Retry") }
+                    } else {
+                        TextButton(onClick = { detailsOperation = null }) { Text("Close") }
+                    }
+                },
+                dismissButton = {
+                    if (event.retry != null) {
+                        TextButton(onClick = { detailsOperation = null }) { Text("Close") }
+                    }
+                },
+            )
+        }
 
         PlatformDraftExitProtection(
             guard = editorExitGuard,
@@ -310,7 +343,26 @@ fun App(
                 Modifier
                     .safeContentPadding()
                     .fillMaxSize(),
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            snackbarHost = {
+                SnackbarHost(snackbarHostState)
+                pendingOperation?.let { event ->
+                    LaunchedEffect(event) {
+                        val result = snackbarHostState.showSnackbar(
+                            message = event.message,
+                            actionLabel = if (event.technicalDetails != null) "Details" else event.retry?.let { "Retry" },
+                            duration = SnackbarDuration.Long,
+                        )
+                        when (result) {
+                            SnackbarResult.ActionPerformed -> {
+                                if (event.technicalDetails != null) detailsOperation = event
+                                else event.retry?.invoke()
+                            }
+                            SnackbarResult.Dismissed -> Unit
+                        }
+                        pendingOperation = null
+                    }
+                }
+            },
             topBar = {
                 if (isSelectionMode) {
                     CenterAlignedTopAppBar(
@@ -454,6 +506,8 @@ fun App(
                             onSelectionChange = { selectedIds = it },
                             isSyncing = diarySyncState.isSyncing,
                             onSyncRequest = diarySyncState::requestSync,
+                            syncAvailability = diarySyncState.availability,
+                            onOpenSettings = { selected = SettingsRoute; navController.navigate(SettingsRoute) },
                             onListVisibilityChange = { isEntriesListVisible = it },
                             onExitGuardChange = { editorExitGuard = it },
                         )
@@ -471,13 +525,13 @@ fun App(
                         )
                     }
                     composable<MomentsRoute> {
-                        MomentsScreen(fileRepo = fileRepo)
+                        MomentsScreen(fileRepo = fileRepo) { pendingOperation = it }
                     }
                     composable<InsightsRoute> {
                         InsightsScreen()
                     }
                     composable<SettingsRoute> {
-                        SettingsScreen(repo = repo)
+                        SettingsScreen(repo = repo) { pendingOperation = it }
                     }
                     composable<ProfileRoute> { backStackEntry ->
                         ProfileScreen(onBack = {
