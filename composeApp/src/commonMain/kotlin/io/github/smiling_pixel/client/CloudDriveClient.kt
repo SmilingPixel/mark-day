@@ -20,6 +20,10 @@ data class UserInfo(
  * Client interface for accessing and managing files on cloud drives.
  */
 interface CloudDriveClient {
+    /** Whether this platform can use the cloud-drive provider. */
+    val isSupported: Boolean
+        get() = true
+
     companion object {
         const val MIME_TYPE_FOLDER = "application/vnd.google-apps.folder"
     }

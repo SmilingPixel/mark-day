@@ -30,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,24 +48,39 @@ import io.github.smiling_pixel.filesystem.name
 import io.github.smiling_pixel.filesystem.readBytes
 import io.github.smiling_pixel.filesystem.rememberFilePicker
 import io.github.smiling_pixel.model.FileMetadata
+import io.github.smiling_pixel.model.LoadState
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
 @Composable
-fun MomentsScreen(fileRepo: FileRepository) {
+fun MomentsScreen(fileRepo: FileRepository, onOperationEvent: (OperationEvent) -> Unit = {}) {
     val files by fileRepo.files.collectAsState(initial = emptyList())
+    val filesState by fileRepo.filesState.collectAsState()
     val scope = rememberCoroutineScope()
+    var isUploading by remember { mutableStateOf(false) }
+    var pendingFiles by remember { mutableStateOf<List<io.github.smiling_pixel.filesystem.PlatformFile>>(emptyList()) }
+
+    fun upload(selected: List<io.github.smiling_pixel.filesystem.PlatformFile>) {
+        pendingFiles = selected
+        isUploading = true
+        scope.launch {
+            try {
+                selected.forEach { file -> fileRepo.saveFile(file.name(), file.readBytes()) }
+                onOperationEvent(OperationEvent("Uploaded ${selected.size} moment${if (selected.size == 1) "" else "s"}."))
+                pendingFiles = emptyList()
+            } catch (e: Exception) {
+                onOperationEvent(OperationEvent("Moments could not be uploaded.", e.message) { upload(pendingFiles) })
+            } finally {
+                isUploading = false
+            }
+        }
+    }
 
     val picker =
         rememberFilePicker { platformFiles ->
-            scope.launch {
-                platformFiles.forEach { file ->
-                    val bytes = file.readBytes()
-                    fileRepo.saveFile(file.name(), bytes)
-                }
-            }
+            upload(platformFiles)
         }
 
     val groupedFiles =
@@ -75,23 +92,36 @@ fun MomentsScreen(fileRepo: FileRepository) {
 
     Scaffold(
         floatingActionButton = {
+            if (files.isNotEmpty()) {
             FloatingActionButton(
-                onClick = { picker.launch() },
+                onClick = { if (!isUploading) picker.launch() },
                 shape = RoundedCornerShape(16.dp),
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Upload Files")
+                if (isUploading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                else Icon(Icons.Default.Add, contentDescription = "Upload Files")
+            }
             }
         },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            items(groupedFiles.keys.toList()) { month ->
-                MomentSection(
-                    month = month,
-                    files = groupedFiles[month] ?: emptyList(),
-                )
+        when (val state = filesState) {
+            LoadState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            is LoadState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(state.message, color = MaterialTheme.colorScheme.error)
+            }
+            is LoadState.Content -> if (state.value.isEmpty()) {
+                Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text("Your Moments will appear here", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
+                    Text("Upload photos and files to keep meaningful memories alongside your entries.", modifier = Modifier.padding(top = 8.dp))
+                    Button(onClick = { picker.launch() }, enabled = !isUploading, modifier = Modifier.padding(top = 20.dp)) { Text("Upload files") }
+                }
+            } else LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(groupedFiles.keys.toList()) { month ->
+                    MomentSection(month = month, files = groupedFiles[month] ?: emptyList())
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ package io.github.smiling_pixel.screens
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +49,7 @@ import io.github.smiling_pixel.draft.EditorExitGuard
 import io.github.smiling_pixel.draft.EntryDraftKey
 import io.github.smiling_pixel.draft.EntryDraftRepository
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.model.LoadState
 import io.github.smiling_pixel.util.Logger
 import kotlin.time.ExperimentalTime
 
@@ -62,6 +65,8 @@ import kotlin.time.ExperimentalTime
  * @param onSelectionChange Updates selected entry IDs.
  * @param isSyncing Whether a cloud synchronization operation is running.
  * @param onSyncRequest Requests cloud synchronization.
+ * @param syncAvailability Current Google Drive capability and authorization state.
+ * @param onOpenSettings Opens the Settings destination.
  * @param onListVisibilityChange Reports whether the ordinary entry list is currently visible.
  * @param onExitGuardChange Reports the active editor's exit protection.
  */
@@ -77,10 +82,13 @@ fun EntriesScreen(
     onSelectionChange: (Set<String>) -> Unit,
     isSyncing: Boolean = false,
     onSyncRequest: () -> Unit = {},
+    syncAvailability: SyncAvailability = SyncAvailability.NotConnected,
+    onOpenSettings: () -> Unit = {},
     onListVisibilityChange: (Boolean) -> Unit = {},
     onExitGuardChange: (EditorExitGuard?) -> Unit = {},
 ) {
     val entriesState by repo.entries.collectAsState()
+    val entriesLoadState by repo.entriesState.collectAsState()
 
     // The stable ID is saveable; the entry itself is always resolved from repository state.
     var selectedEntrySyncId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -189,6 +197,7 @@ fun EntriesScreen(
             }
         }
     } else {
+        val contentState = entriesLoadState
         // List view
         Scaffold(
             floatingActionButton = {
@@ -197,34 +206,42 @@ fun EntriesScreen(
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        FloatingActionButton(
-                            onClick = onSyncRequest,
-                            shape = RoundedCornerShape(16.dp),
+                        if (entriesState.isNotEmpty() &&
+                            (syncAvailability == SyncAvailability.Available || syncAvailability == SyncAvailability.Offline)
                         ) {
-                            if (isSyncing) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Default.Refresh, contentDescription = "Sync with Google Drive")
+                            FloatingActionButton(onClick = onSyncRequest, shape = RoundedCornerShape(16.dp)) {
+                                if (isSyncing) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                else Icon(Icons.Default.Refresh, contentDescription = "Sync with Google Drive")
                             }
                         }
-                        FloatingActionButton(
-                            onClick = { isCreating = true },
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
+                        if (entriesState.isNotEmpty()) FloatingActionButton(onClick = { isCreating = true }, shape = RoundedCornerShape(16.dp)) {
                             Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
                         }
                     }
                 }
             },
         ) { paddingValues ->
-            LazyColumn(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            when (contentState) {
+                LoadState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                is LoadState.Error -> EmptyContentState(
+                    icon = Icons.Default.Add,
+                    title = contentState.message,
+                    description = "Try again to load your entries.",
+                    actionLabel = "Retry",
+                    onAction = { onSyncRequest() },
+                )
+                is LoadState.Content -> if (contentState.value.isEmpty()) {
+                    EmptyContentState(
+                        icon = Icons.Default.Add,
+                        title = "Write your first entry",
+                        description = "Capture a thought, memory, or moment from today.",
+                        actionLabel = "New entry",
+                        onAction = { isCreating = true },
+                    )
+                } else LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                 items(entriesState, key = { it.id }) { entry ->
                     val isSelected = entry.syncId in selectedIds
                     Card(
@@ -330,7 +347,33 @@ fun EntriesScreen(
                         }
                     }
                 }
+                }
+            }
+            if (entriesState.isNotEmpty() &&
+                syncAvailability != SyncAvailability.Available &&
+                syncAvailability != SyncAvailability.Offline
+            ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Connect Google Drive in Settings.", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = onOpenSettings) { Text("Open Settings") }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyContentState(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
+        Text(description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+        Button(onClick = onAction, modifier = Modifier.padding(top = 20.dp)) { Text(actionLabel) }
     }
 }
