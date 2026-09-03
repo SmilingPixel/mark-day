@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -30,6 +31,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +54,7 @@ import io.github.smiling_pixel.draft.EntryDraft
 import io.github.smiling_pixel.draft.EntryDraftKey
 import io.github.smiling_pixel.draft.EntryDraftRepository
 import io.github.smiling_pixel.draft.debounceDraftChanges
-import io.github.smiling_pixel.filesystem.fileManager
+import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.util.Logger
@@ -77,6 +79,7 @@ import kotlin.time.Instant
  *
  * @param entry The [DiaryEntry] to display or edit. If null, creates a new entry.
  * @param weatherClient The [WeatherClient] to fetch weather information.
+ * @param fileRepo Repository containing local Moment attachments.
  * @param isSyncing Whether a cloud synchronization operation is running.
  * @param onSyncRequest Callback that requests cloud synchronization.
  * @param draftRepository Device-local repository used for interrupted editor drafts.
@@ -89,14 +92,17 @@ import kotlin.time.Instant
 fun EntryDetailsScreen(
     entry: DiaryEntry?,
     weatherClient: WeatherClient,
+    fileRepo: FileRepository,
     isSyncing: Boolean = false,
     onSyncRequest: () -> Unit = {},
     draftRepository: EntryDraftRepository,
     onExitGuardChange: (EditorExitGuard?) -> Unit = {},
-    onSave: suspend (DiaryEntry) -> DiaryEntry,
+    onSave: suspend (DiaryEntry, Set<Long>) -> DiaryEntry,
     onCancel: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val allMoments by fileRepo.files.collectAsState(initial = emptyList())
+    val allMomentLinks by fileRepo.links.collectAsState(initial = emptyList())
     // The editor has two recovery layers. These saveable values handle short-lived UI recreation, while the draft
     // repository below survives disposal of this composable and application restarts. A new editor keeps the generated
     // identity saveable so every autosave and the eventual committed entry refer to the same logical entry.
@@ -134,14 +140,15 @@ fun EntryDetailsScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showUnsafeExitDialog by remember { mutableStateOf(false) }
     var pendingConflictDraft by remember { mutableStateOf<EntryDraft?>(null) }
+    var selectedMomentIds by rememberSaveable(editorKey) { mutableStateOf<List<Long>>(emptyList()) }
+    var showAttachmentPicker by remember { mutableStateOf(false) }
 
     val draftKey = entry?.syncId?.let(EntryDraftKey::ExistingEntry) ?: EntryDraftKey.NewEntry
     // The baseline is the committed entry (or the untouched initial new-entry form). Equality with it means there is no
     // meaningful recovery data to retain, so persistSnapshot removes any previously parked draft.
-    val baseline =
-        remember(entry, targetSyncId, createdAtEpochMilliseconds) {
-            EntryFormSnapshot.fromEntry(entry, targetSyncId, createdAtEpochMilliseconds, entryDateText)
-        }
+    var baseline by remember(entry, targetSyncId, createdAtEpochMilliseconds) {
+        mutableStateOf(EntryFormSnapshot.fromEntry(entry, targetSyncId, createdAtEpochMilliseconds, entryDateText))
+    }
 
     fun currentSnapshot(): EntryFormSnapshot =
         EntryFormSnapshot(
@@ -153,6 +160,7 @@ fun EntryDetailsScreen(
             minTemperature = minTemp,
             maxTemperature = maxTemp,
             createdAtEpochMilliseconds = createdAtEpochMilliseconds,
+            momentIds = selectedMomentIds,
         )
 
     fun applySnapshot(snapshot: EntryFormSnapshot) {
@@ -164,6 +172,7 @@ fun EntryDetailsScreen(
         weatherCondition = snapshot.weatherCondition.orEmpty()
         minTemp = snapshot.minTemperature
         maxTemp = snapshot.maxTemperature
+        selectedMomentIds = snapshot.momentIds
     }
 
     suspend fun persistSnapshot(snapshot: EntryFormSnapshot): Boolean =
@@ -193,6 +202,16 @@ fun EntryDetailsScreen(
 
     suspend fun hydrateEditor() {
         try {
+            val persistedMomentIds = entry?.let { fileRepo.getFileIdsForEntry(it.syncId) }.orEmpty()
+            baseline =
+                EntryFormSnapshot.fromEntry(
+                    entry,
+                    targetSyncId,
+                    createdAtEpochMilliseconds,
+                    entryDateText,
+                    persistedMomentIds,
+                )
+            selectedMomentIds = persistedMomentIds.toList()
             val draft = draftRepository.load(draftKey)
             // Existing-entry drafts are optimistic edits based on a particular updatedAt revision. Never overwrite a
             // newer synced/committed revision silently.
@@ -406,6 +425,27 @@ fun EntryDetailsScreen(
         }
     }
 
+    if (showAttachmentPicker) {
+        EntryAttachmentPicker(
+            fileRepo = fileRepo,
+            files = allMoments,
+            initialSelection = selectedMomentIds.toSet(),
+            onConfirm = {
+                selectedMomentIds = it.toList()
+                showAttachmentPicker = false
+            },
+            onDismiss = { showAttachmentPicker = false },
+        )
+    }
+
+    val displayedMomentIds =
+        if (isEditing) {
+            selectedMomentIds.toSet()
+        } else {
+            allMomentLinks.filter { it.entrySyncId == entry?.syncId }.mapTo(mutableSetOf()) { it.fileId }
+        }
+    val attachedMoments = allMoments.filter { it.id in displayedMomentIds }
+
     Column(
         modifier =
             Modifier
@@ -458,11 +498,12 @@ fun EntryDetailsScreen(
                                     maxTemperature = maxTemp,
                                 )
                             try {
-                                // Draft persistence is attempted first but does not block an explicit diary Save. The
-                                // diary commit is itself durable; stable targetSyncId lets startup recognize a committed
-                                // new entry if the following best-effort draft deletion is interrupted or fails.
+                                // Draft persistence is attempted first but does not block an explicit diary
+                                // Save. The diary commit is itself durable; stable targetSyncId lets startup
+                                // recognize a committed new entry if the following best-effort draft deletion
+                                // is interrupted or fails.
                                 persistLatest()
-                                onSave(candidate)
+                                onSave(candidate, selectedMomentIds.toSet())
                                 try {
                                     draftRepository.delete(draftKey)
                                 } catch (e: Exception) {
@@ -644,7 +685,8 @@ fun EntryDetailsScreen(
                                     if (relevant.isNotEmpty()) {
                                         minTemp = relevant.minOf { it.minTemperature }
                                         maxTemp = relevant.maxOf { it.maxTemperature }
-                                        // Simple condition aggregation: take the most frequent or just the first/middle?
+                                        // Simple condition aggregation: take the most frequent or just the
+                                        // first/middle?
                                         // Let's take the one at noon or middle of list
                                         weatherCondition = relevant[relevant.size / 2].condition
                                     } else if (hourly.isNotEmpty()) {
@@ -672,6 +714,23 @@ fun EntryDetailsScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Attachments", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                TextButton(onClick = { showAttachmentPicker = true }, enabled = isHydrated) {
+                    Icon(Icons.Default.AttachFile, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Attach")
+                }
+            }
+            EntryAttachmentStrip(
+                files = attachedMoments,
+                editable = true,
+                onRemove = { fileId -> selectedMomentIds = selectedMomentIds.filterNot { it == fileId } },
+            )
+            if (attachedMoments.isNotEmpty()) Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = content,
                 onValueChange = { content = it },
@@ -681,38 +740,16 @@ fun EntryDetailsScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            var fileCount by remember(entry) { mutableStateOf(0) }
-            var totalFileSize by remember(entry) { mutableStateOf(0L) }
-
-            LaunchedEffect(entry!!.content) {
-                var count = 0
-                var size = 0L
-                val regex = Regex("localfile:///([^)/\\s]+)")
-                val matches = regex.findAll(entry.content)
-                for (match in matches) {
-                    val filePath = match.groupValues[1]
-                    // Reject potentially unsafe paths to prevent directory traversal.
-                    if (filePath.isEmpty() || filePath.contains("..")) {
-                        Logger.w("EntryDetailsScreen", "Rejected potentially unsafe or empty path: $filePath")
-                        continue
-                    }
-                    count++
-                    try {
-                        size += fileManager.getSize(filePath)
-                    } catch (e: Exception) {
-                        Logger.w("EntryDetailsScreen", "Failed to get size for $filePath: $e")
-                    }
-                }
-                fileCount = count
-                totalFileSize = size
-            }
+            val displayedEntry = requireNotNull(entry)
+            val fileCount = attachedMoments.size
+            val totalFileSize = attachedMoments.sumOf { it.sizeBytes.coerceAtLeast(0) }
 
             // show timestamps
-            val createdLocal = entry.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
-            val updatedLocal = entry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
+            val createdLocal = displayedEntry.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
+            val updatedLocal = displayedEntry.updatedAt.toLocalDateTime(TimeZone.currentSystemDefault())
 
             Text(
-                text = "Date: ${entry.entryDate}",
+                text = "Date: ${displayedEntry.entryDate}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -743,7 +780,7 @@ fun EntryDetailsScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            val statsText = "${entry.content.length} chars | $fileCount files, ${formatBytes(totalFileSize)}"
+            val statsText = "${displayedEntry.content.length} chars | $fileCount files, ${formatBytes(totalFileSize)}"
             Text(
                 text = statsText,
                 style = MaterialTheme.typography.bodySmall,
@@ -752,9 +789,13 @@ fun EntryDetailsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (entry.weatherCondition != null) {
+            EntryAttachmentStrip(files = attachedMoments, editable = false)
+            if (attachedMoments.isNotEmpty()) Spacer(modifier = Modifier.height(12.dp))
+
+            if (displayedEntry.weatherCondition != null) {
                 val weatherText =
-                    "Weather: ${entry.weatherCondition}, Temp: ${entry.minTemperature}°C - ${entry.maxTemperature}°C"
+                    "Weather: ${displayedEntry.weatherCondition}, Temp: ${displayedEntry.minTemperature}°C - " +
+                        "${displayedEntry.maxTemperature}°C"
                 Text(
                     text = weatherText,
                     style = MaterialTheme.typography.bodySmall,
@@ -767,7 +808,7 @@ fun EntryDetailsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Markdown(
-                content = entry.content,
+                content = displayedEntry.content,
                 imageTransformer = Coil3ImageTransformerImpl,
             )
         }
@@ -783,6 +824,7 @@ private data class EntryFormSnapshot(
     val minTemperature: Double?,
     val maxTemperature: Double?,
     val createdAtEpochMilliseconds: Long,
+    val momentIds: List<Long>,
 ) {
     fun toDraft(
         sourceEntry: DiaryEntry?,
@@ -800,6 +842,7 @@ private data class EntryFormSnapshot(
             maxTemperature = maxTemperature,
             createdAtEpochMilliseconds = createdAtEpochMilliseconds,
             draftUpdatedAtEpochMilliseconds = updatedAtEpochMilliseconds,
+            momentIds = momentIds,
         )
 
     companion object {
@@ -808,6 +851,7 @@ private data class EntryFormSnapshot(
             targetSyncId: String,
             initialNow: Long,
             initialDate: String,
+            momentIds: Set<Long> = emptySet(),
         ): EntryFormSnapshot =
             EntryFormSnapshot(
                 targetSyncId = targetSyncId,
@@ -818,6 +862,7 @@ private data class EntryFormSnapshot(
                 minTemperature = entry?.minTemperature,
                 maxTemperature = entry?.maxTemperature,
                 createdAtEpochMilliseconds = entry?.createdAt?.toEpochMilliseconds() ?: initialNow,
+                momentIds = momentIds.toList(),
             )
 
         fun fromDraft(draft: EntryDraft): EntryFormSnapshot =
@@ -830,6 +875,7 @@ private data class EntryFormSnapshot(
                 minTemperature = draft.minTemperature,
                 maxTemperature = draft.maxTemperature,
                 createdAtEpochMilliseconds = draft.createdAtEpochMilliseconds,
+                momentIds = draft.momentIds,
             )
     }
 }

@@ -35,6 +35,7 @@ sealed interface EntryDraftKey {
  * @property maxTemperature Optional maximum temperature.
  * @property createdAtEpochMilliseconds Creation time retained when the draft becomes a diary entry.
  * @property draftUpdatedAtEpochMilliseconds Time at which this snapshot was created.
+ * @property momentIds Local Moments selected for the eventual committed entry.
  */
 @Serializable
 data class EntryDraft(
@@ -49,6 +50,7 @@ data class EntryDraft(
     val maxTemperature: Double? = null,
     val createdAtEpochMilliseconds: Long,
     val draftUpdatedAtEpochMilliseconds: Long,
+    val momentIds: List<Long> = emptyList(),
 ) {
     init {
         require(targetSyncId.isNotBlank()) { "Draft target sync ID must not be blank." }

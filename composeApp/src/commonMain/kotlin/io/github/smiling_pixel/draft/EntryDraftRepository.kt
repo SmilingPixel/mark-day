@@ -139,7 +139,7 @@ private data class DraftEnvelope(
     val drafts: List<EntryDraft> = emptyList(),
 )
 
-private const val CURRENT_SCHEMA_VERSION = 1
+private const val CURRENT_SCHEMA_VERSION = 2
 
 private val json =
     Json {
