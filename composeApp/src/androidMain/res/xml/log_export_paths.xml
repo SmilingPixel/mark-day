@@ -2,4 +2,5 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="log_exports" path="log_exports/" />
     <cache-path name="entry_exports" path="entry_exports/" />
+    <cache-path name="moment_exports" path="moment_exports/" />
 </paths>
