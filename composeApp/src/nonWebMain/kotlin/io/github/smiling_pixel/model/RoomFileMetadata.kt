@@ -10,4 +10,6 @@ data class RoomFileMetadata(
     val filePath: String,
     val tags: List<String>,
     val createdAt: Long,
+    val mimeType: String,
+    val sizeBytes: Long,
 )
