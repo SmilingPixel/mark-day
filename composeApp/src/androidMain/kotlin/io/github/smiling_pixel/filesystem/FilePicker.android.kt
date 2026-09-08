@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 
 actual class PlatformFile(
     val uri: Uri,
@@ -19,6 +20,24 @@ actual class PlatformFile(
 actual suspend fun PlatformFile.readBytes(): ByteArray =
     withContext(Dispatchers.IO) {
         contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
+    }
+
+actual suspend fun PlatformFile.readBytes(maxBytes: Long): ByteArray =
+    withContext(Dispatchers.IO) {
+        require(sizeBytes()?.let { it <= maxBytes } != false) { "Selected file exceeds the size limit." }
+        contentResolver.openInputStream(uri)?.use { input ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var total = 0L
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                total += count
+                require(total <= maxBytes) { "Selected file exceeds the size limit." }
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        } ?: throw IllegalStateException("Selected file could not be opened.")
     }
 
 actual fun PlatformFile.name(): String {
@@ -37,6 +56,17 @@ actual fun PlatformFile.name(): String {
     }
     return name
 }
+
+actual fun PlatformFile.sizeBytes(): Long? {
+    val cursor = contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+    return cursor?.use {
+        if (!it.moveToFirst()) return@use null
+        val index = it.getColumnIndex(OpenableColumns.SIZE)
+        if (index < 0 || it.isNull(index)) null else it.getLong(index)
+    }
+}
+
+actual fun PlatformFile.mimeType(): String? = contentResolver.getType(uri)
 
 @Composable
 actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher {
