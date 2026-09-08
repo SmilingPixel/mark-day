@@ -16,6 +16,13 @@ class InMemoryFileManager : FileManager {
         files.remove(fileName)
     }
 
+    override suspend fun move(
+        sourceFileName: String,
+        destinationFileName: String,
+    ) {
+        files.remove(sourceFileName)?.let { files[destinationFileName] = it }
+    }
+
     override suspend fun exists(fileName: String): Boolean = files.containsKey(fileName)
 
     override suspend fun list(): List<String> = files.keys.toList()
