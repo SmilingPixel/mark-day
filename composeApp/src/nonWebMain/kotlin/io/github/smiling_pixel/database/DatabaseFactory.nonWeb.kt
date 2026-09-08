@@ -7,6 +7,7 @@ import kotlinx.coroutines.IO
 
 fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase =
     builder
+        .addMigrations(migration4To5)
         // TODO: maybe a risk here if using destructive migration in production, but for now it simplifies development.
         .fallbackToDestructiveMigration(true)
         .setDriver(BundledSQLiteDriver())

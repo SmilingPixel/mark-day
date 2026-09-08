@@ -1,6 +1,7 @@
 package io.github.smiling_pixel.database
 
 import io.github.smiling_pixel.model.FileMetadata
+import io.github.smiling_pixel.model.MomentEntryLink
 import io.github.smiling_pixel.model.RoomFileMetadata
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -27,9 +28,37 @@ class FileMetadataDaoImpl(
         roomDao.deleteFile(fileMetadata.toRoom())
     }
 
+    override fun getAllLinks(): Flow<List<MomentEntryLink>> =
+        roomDao.getAllLinks().map { links -> links.map { MomentEntryLink(it.fileId, it.entrySyncId) } }
+
+    override suspend fun getFileIdsForEntry(entrySyncId: String): Set<Long> =
+        roomDao.getFileIdsForEntry(entrySyncId).toSet()
+
+    override suspend fun getEntrySyncIdsForFile(fileId: Long): Set<String> =
+        roomDao.getEntrySyncIdsForFile(fileId).toSet()
+
+    override suspend fun replaceLinksForEntry(
+        entrySyncId: String,
+        fileIds: Set<Long>,
+    ) = roomDao.replaceLinksForEntry(entrySyncId, fileIds)
+
+    override suspend fun restoreLinks(links: List<MomentEntryLink>) {
+        roomDao.insertLinks(links.map { io.github.smiling_pixel.model.RoomMomentEntryLink(it.fileId, it.entrySyncId) })
+    }
+
+    override suspend fun deleteLinksForEntry(entrySyncId: String) = roomDao.deleteLinksForEntry(entrySyncId)
+
+    override suspend fun deleteDanglingLinks(validEntrySyncIds: Set<String>) {
+        if (validEntrySyncIds.isEmpty()) {
+            roomDao.deleteDanglingLinks(setOf("__no_valid_entries__"))
+        } else {
+            roomDao.deleteDanglingLinks(validEntrySyncIds)
+        }
+    }
+
     private fun RoomFileMetadata.toDomain(): FileMetadata =
-        FileMetadata(id, originalFileName, filePath, tags, createdAt)
+        FileMetadata(id, originalFileName, filePath, tags, createdAt, mimeType, sizeBytes)
 
     private fun FileMetadata.toRoom(): RoomFileMetadata =
-        RoomFileMetadata(id, originalFileName, filePath, tags, createdAt)
+        RoomFileMetadata(id, originalFileName, filePath, tags, createdAt, mimeType, sizeBytes)
 }
