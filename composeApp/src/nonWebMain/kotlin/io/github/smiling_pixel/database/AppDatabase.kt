@@ -11,6 +11,7 @@ import io.github.smiling_pixel.model.RoomMomentEntryLink
 
 @Database(
     entities = [RoomDiaryEntry::class, RoomFileMetadata::class, RoomMomentEntryLink::class],
+    // Moments is pre-release; the current schema is authoritative and older local databases may be recreated.
     version = 5,
 )
 @TypeConverters(Converters::class)
