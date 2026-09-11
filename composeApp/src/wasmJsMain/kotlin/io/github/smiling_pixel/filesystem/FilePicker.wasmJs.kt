@@ -35,7 +35,18 @@ actual suspend fun PlatformFile.readBytes(): ByteArray =
         reader.readAsArrayBuffer(file)
     }
 
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+actual suspend fun PlatformFile.readBytes(maxBytes: Long): ByteArray {
+    require(file.size.toDouble().toLong() <= maxBytes) { "Selected file exceeds the size limit." }
+    return readBytes()
+}
+
 actual fun PlatformFile.name(): String = file.name
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+actual fun PlatformFile.sizeBytes(): Long? = file.size.toDouble().toLong()
+
+actual fun PlatformFile.mimeType(): String? = file.type.takeIf { it.isNotBlank() }
 
 @Composable
 actual fun rememberFilePicker(onFilesSelected: (List<PlatformFile>) -> Unit): FilePickerLauncher =

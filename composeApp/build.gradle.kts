@@ -97,6 +97,7 @@ kotlin {
             implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.1")
             implementation("org.jetbrains.compose.material:material:1.9.3")
             implementation("org.jetbrains.compose.material:material-icons-core:1.7.3")
+            implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
             implementation(libs.kotlinx.coroutines.core)
             // Kotlinx serialization (used by typed navigation routes)

@@ -59,6 +59,7 @@ import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.draft.EditorExitGuard
 import io.github.smiling_pixel.draft.EntryDraftRepository
+import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.LoadState
 import io.github.smiling_pixel.search.EntrySearchCriteria
@@ -80,6 +81,7 @@ import kotlin.time.Instant
  * same search session.
  *
  * @param repo Repository whose current in-memory entry snapshot is searched.
+ * @param fileRepo Repository containing Moment attachments.
  * @param draftRepository Repository containing device-local editor drafts.
  * @param weatherClient Client used by the entry details editor.
  * @param selectedEntrySyncId Stable ID of the result currently being viewed, or null for the result list.
@@ -92,6 +94,7 @@ import kotlin.time.Instant
 @Composable
 fun SearchScreen(
     repo: DiaryRepository,
+    fileRepo: FileRepository,
     draftRepository: EntryDraftRepository,
     weatherClient: WeatherClient,
     selectedEntrySyncId: String?,
@@ -193,12 +196,14 @@ fun SearchScreen(
             EntryDetailsScreen(
                 entry = selectedEntry,
                 weatherClient = weatherClient,
+                fileRepo = fileRepo,
                 isSyncing = isSyncing,
                 onSyncRequest = onSyncRequest,
                 draftRepository = draftRepository,
                 onExitGuardChange = onExitGuardChange,
-                onSave = { entry ->
+                onSave = { entry, momentIds ->
                     repo.update(entry)
+                    fileRepo.replaceLinksForEntry(entry.syncId, momentIds)
                     recentlyCommittedEntry = entry
                     entry
                 },
@@ -309,8 +314,11 @@ fun SearchScreen(
             TextButton(
                 onClick = { clearSearch() },
                 enabled =
-                    query.isNotEmpty() || startDateText != null || endDateText != null ||
-                        sortField != EntrySortField.DIARY_DATE || appliedCriteria != null,
+                    query.isNotEmpty() ||
+                        startDateText != null ||
+                        endDateText != null ||
+                        sortField != EntrySortField.DIARY_DATE ||
+                        appliedCriteria != null,
             ) {
                 Text("Clear")
             }
@@ -330,7 +338,11 @@ fun SearchScreen(
                     val queryText = appliedCriteria.normalizedQuery
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            if (queryText.isNotEmpty()) "No entries match \"$queryText\"" else "No entries match your filters",
+                            if (queryText.isNotEmpty()) {
+                                "No entries match \"$queryText\""
+                            } else {
+                                "No entries match your filters"
+                            },
                             style = MaterialTheme.typography.bodyLarge,
                         )
                         TextButton(onClick = { clearSearch() }) { Text("Clear filters") }

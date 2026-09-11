@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,7 +26,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -55,15 +55,16 @@ import io.github.smiling_pixel.draft.getEntryDraftRepository
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
 import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.model.MomentEntryLink
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.screens.EntriesScreen
 import io.github.smiling_pixel.screens.InsightsScreen
 import io.github.smiling_pixel.screens.MomentsScreen
+import io.github.smiling_pixel.screens.OperationEvent
 import io.github.smiling_pixel.screens.ProfileScreen
 import io.github.smiling_pixel.screens.SearchScreen
 import io.github.smiling_pixel.screens.SettingsScreen
 import io.github.smiling_pixel.screens.rememberDiarySyncState
-import io.github.smiling_pixel.screens.OperationEvent
 import io.github.smiling_pixel.sync.startAutoSync
 import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.theme.ThemeMode
@@ -176,6 +177,8 @@ fun App(
         var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
         var showDeleteConfirmation by remember { mutableStateOf(false) }
         var pendingDeletedEntries by remember { mutableStateOf<List<DiaryEntry>>(emptyList()) }
+        var pendingDeletedEntryLinks by remember { mutableStateOf<List<MomentEntryLink>>(emptyList()) }
+        var requestedEntryFromMoments by rememberSaveable { mutableStateOf<String?>(null) }
         var undoToken by remember { mutableStateOf(0) }
         var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
 
@@ -300,10 +303,15 @@ fun App(
                                     return@launch
                                 }
 
+                                val linksToRestore =
+                                    fileRepo.snapshotLinksForEntries(
+                                        entriesToDelete.mapTo(mutableSetOf()) { it.syncId },
+                                    )
                                 entriesToDelete.forEach { repo.delete(it) }
                                 isSelectionMode = false
                                 selectedIds = emptySet()
                                 pendingDeletedEntries = entriesToDelete
+                                pendingDeletedEntryLinks = linksToRestore
                                 undoToken += 1
                                 val token = undoToken
                                 undoSnackbarJob?.cancel()
@@ -318,9 +326,11 @@ fun App(
                                             )
                                         if (result == SnackbarResult.ActionPerformed && token == undoToken) {
                                             pendingDeletedEntries.forEach { repo.restore(it) }
+                                            fileRepo.restoreLinks(pendingDeletedEntryLinks)
                                         }
                                         if (token == undoToken) {
                                             pendingDeletedEntries = emptyList()
+                                            pendingDeletedEntryLinks = emptyList()
                                         }
                                     }
                             }
@@ -347,17 +357,27 @@ fun App(
                 SnackbarHost(snackbarHostState)
                 pendingOperation?.let { event ->
                     LaunchedEffect(event) {
-                        val result = snackbarHostState.showSnackbar(
-                            message = event.message,
-                            actionLabel = if (event.technicalDetails != null) "Details" else event.retry?.let { "Retry" },
-                            duration = SnackbarDuration.Long,
-                        )
+                        val actionLabel =
+                            event.actionLabel ?: when {
+                                event.technicalDetails != null -> "Details"
+                                event.retry != null -> "Retry"
+                                else -> null
+                            }
+                        val result =
+                            snackbarHostState.showSnackbar(
+                                message = event.message,
+                                actionLabel = actionLabel,
+                                duration = SnackbarDuration.Long,
+                            )
                         when (result) {
                             SnackbarResult.ActionPerformed -> {
-                                if (event.technicalDetails != null) detailsOperation = event
-                                else event.retry?.invoke()
+                                when {
+                                    event.action != null -> event.action.invoke()
+                                    event.technicalDetails != null -> detailsOperation = event
+                                    else -> event.retry?.invoke()
+                                }
                             }
-                            SnackbarResult.Dismissed -> Unit
+                            SnackbarResult.Dismissed -> event.onDismiss?.invoke()
                         }
                         pendingOperation = null
                     }
@@ -498,6 +518,7 @@ fun App(
                     composable<EntriesRoute> {
                         EntriesScreen(
                             repo = repo,
+                            fileRepo = fileRepo,
                             draftRepository = draftRepository,
                             weatherClient = weatherClient,
                             isSelectionMode = isSelectionMode,
@@ -507,14 +528,20 @@ fun App(
                             isSyncing = diarySyncState.isSyncing,
                             onSyncRequest = diarySyncState::requestSync,
                             syncAvailability = diarySyncState.availability,
-                            onOpenSettings = { selected = SettingsRoute; navController.navigate(SettingsRoute) },
+                            onOpenSettings = {
+                                selected = SettingsRoute
+                                navController.navigate(SettingsRoute)
+                            },
                             onListVisibilityChange = { isEntriesListVisible = it },
                             onExitGuardChange = { editorExitGuard = it },
+                            requestedEntrySyncId = requestedEntryFromMoments,
+                            onRequestedEntryConsumed = { requestedEntryFromMoments = null },
                         )
                     }
                     composable<SearchRoute> {
                         SearchScreen(
                             repo = repo,
+                            fileRepo = fileRepo,
                             draftRepository = draftRepository,
                             weatherClient = weatherClient,
                             selectedEntrySyncId = searchSelectedEntrySyncId,
@@ -525,7 +552,15 @@ fun App(
                         )
                     }
                     composable<MomentsRoute> {
-                        MomentsScreen(fileRepo = fileRepo) { pendingOperation = it }
+                        MomentsScreen(
+                            fileRepo = fileRepo,
+                            diaryEntries = repo.entries.value,
+                            onOpenEntry = { entrySyncId ->
+                                requestedEntryFromMoments = entrySyncId
+                                selected = EntriesRoute
+                                navController.navigate(EntriesRoute)
+                            },
+                        ) { pendingOperation = it }
                     }
                     composable<InsightsRoute> {
                         InsightsScreen()

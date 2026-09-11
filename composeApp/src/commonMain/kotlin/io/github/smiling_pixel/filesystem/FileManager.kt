@@ -13,6 +13,12 @@ interface FileManager {
 
     suspend fun delete(fileName: String)
 
+    /** Moves a stored file without exposing an absolute platform path. */
+    suspend fun move(
+        sourceFileName: String,
+        destinationFileName: String,
+    )
+
     suspend fun exists(fileName: String): Boolean
 
     suspend fun list(): List<String>
@@ -62,6 +68,17 @@ class LocalFileManager(
         val filePath = rootPath / fileName
         if (fileSystem.exists(filePath)) {
             fileSystem.delete(filePath)
+        }
+    }
+
+    override suspend fun move(
+        sourceFileName: String,
+        destinationFileName: String,
+    ) {
+        val source = rootPath / sourceFileName
+        val destination = rootPath / destinationFileName
+        if (fileSystem.exists(source)) {
+            fileSystem.atomicMove(source, destination)
         }
     }
 
