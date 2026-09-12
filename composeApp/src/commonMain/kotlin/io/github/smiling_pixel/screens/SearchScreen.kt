@@ -39,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,11 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
-import io.github.smiling_pixel.draft.EditorExitGuard
-import io.github.smiling_pixel.draft.EntryDraftRepository
-import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.LoadState
 import io.github.smiling_pixel.search.EntrySearchCriteria
@@ -75,33 +70,19 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
 /**
- * Displays entry search controls, results, and details for the selected result.
+ * Displays entry search controls and results.
  *
  * Search form values and the applied result set remain saveable while a result is open, allowing Back to restore the
  * same search session.
  *
  * @param repo Repository whose current in-memory entry snapshot is searched.
- * @param fileRepo Repository containing Moment attachments.
- * @param draftRepository Repository containing device-local editor drafts.
- * @param weatherClient Client used by the entry details editor.
- * @param selectedEntrySyncId Stable ID of the result currently being viewed, or null for the result list.
- * @param onSelectedEntryChange Updates the result currently being viewed.
- * @param isSyncing Whether a cloud synchronization operation is running.
- * @param onSyncRequest Requests cloud synchronization from an opened result.
- * @param onExitGuardChange Reports the opened editor's exit protection.
+ * @param onOpenEntry Opens an entry detail route by stable synchronization identifier.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     repo: DiaryRepository,
-    fileRepo: FileRepository,
-    draftRepository: EntryDraftRepository,
-    weatherClient: WeatherClient,
-    selectedEntrySyncId: String?,
-    onSelectedEntryChange: (String?) -> Unit,
-    isSyncing: Boolean = false,
-    onSyncRequest: () -> Unit = {},
-    onExitGuardChange: (EditorExitGuard?) -> Unit = {},
+    onOpenEntry: (String) -> Unit = {},
 ) {
     val entries by repo.entries.collectAsState()
     val entriesLoadState by repo.entriesState.collectAsState()
@@ -116,7 +97,6 @@ fun SearchScreen(
     var showStartDatePicker by rememberSaveable { mutableStateOf(false) }
     var showEndDatePicker by rememberSaveable { mutableStateOf(false) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
-    var recentlyCommittedEntry by remember { mutableStateOf<DiaryEntry?>(null) }
     val listState = rememberLazyListState()
 
     val startDate = startDateText?.let(LocalDate::parse)
@@ -136,16 +116,6 @@ fun SearchScreen(
         remember(entries, appliedCriteria) {
             appliedCriteria?.let { searchEntries(entries, it) }.orEmpty()
         }
-    val selectedEntry =
-        recentlyCommittedEntry?.takeIf { it.syncId == selectedEntrySyncId }
-            ?: entries.firstOrNull { it.syncId == selectedEntrySyncId }
-
-    LaunchedEffect(entries, recentlyCommittedEntry) {
-        if (recentlyCommittedEntry != null && entries.any { it == recentlyCommittedEntry }) {
-            recentlyCommittedEntry = null
-        }
-    }
-
     fun applySearch() {
         if (!formCriteria.hasValidDateRange) return
         appliedQuery = formCriteria.normalizedQuery
@@ -185,36 +155,6 @@ fun SearchScreen(
             },
             onDismiss = { showEndDatePicker = false },
         )
-    }
-
-    if (selectedEntrySyncId != null) {
-        if (selectedEntry == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            EntryDetailsScreen(
-                entry = selectedEntry,
-                weatherClient = weatherClient,
-                fileRepo = fileRepo,
-                isSyncing = isSyncing,
-                onSyncRequest = onSyncRequest,
-                draftRepository = draftRepository,
-                onExitGuardChange = onExitGuardChange,
-                onSave = { entry, momentIds ->
-                    repo.update(entry)
-                    fileRepo.replaceLinksForEntry(entry.syncId, momentIds)
-                    recentlyCommittedEntry = entry
-                    entry
-                },
-                onCancel = {
-                    recentlyCommittedEntry = null
-                    onSelectedEntryChange(null)
-                    onExitGuardChange(null)
-                },
-            )
-        }
-        return
     }
 
     if (entriesLoadState is LoadState.Loading) {
@@ -359,7 +299,7 @@ fun SearchScreen(
                         SearchResultCard(
                             entry = entry,
                             query = appliedCriteria.normalizedQuery,
-                            onClick = { onSelectedEntryChange(entry.syncId) },
+                            onClick = { onOpenEntry(entry.syncId) },
                         )
                     }
                 }

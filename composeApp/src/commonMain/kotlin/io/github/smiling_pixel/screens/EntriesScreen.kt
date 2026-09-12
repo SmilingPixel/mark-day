@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,38 +28,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.smiling_pixel.client.WeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
-import io.github.smiling_pixel.draft.EditorExitGuard
-import io.github.smiling_pixel.draft.EntryDraftKey
-import io.github.smiling_pixel.draft.EntryDraftRepository
-import io.github.smiling_pixel.filesystem.FileRepository
-import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.LoadState
-import io.github.smiling_pixel.util.Logger
-import kotlin.time.ExperimentalTime
 
 /**
- * Displays diary entries and coordinates durable entry-editor drafts.
+ * Displays diary entries and reports route intents to the app coordinator.
  *
  * @param repo Repository containing committed diary entries.
- * @param fileRepo Repository containing Moment attachments.
- * @param draftRepository Repository containing device-local editor drafts.
- * @param weatherClient Client used to populate entry weather fields.
  * @param isSelectionMode Whether multi-entry selection is active.
  * @param selectedIds Stable IDs of selected entries.
  * @param onSelectionModeChange Updates multi-entry selection mode.
@@ -69,18 +52,13 @@ import kotlin.time.ExperimentalTime
  * @param onSyncRequest Requests cloud synchronization.
  * @param syncAvailability Current Google Drive capability and authorization state.
  * @param onOpenSettings Opens the Settings destination.
- * @param onListVisibilityChange Reports whether the ordinary entry list is currently visible.
- * @param onExitGuardChange Reports the active editor's exit protection.
- * @param requestedEntrySyncId Entry requested by another destination, or null.
- * @param onRequestedEntryConsumed Clears a handled external entry request.
+ * @param onOpenEntry Opens an entry detail route by stable synchronization identifier.
+ * @param onCreateEntry Opens the typed new-entry route.
  */
-@OptIn(ExperimentalFoundationApi::class, ExperimentalTime::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EntriesScreen(
     repo: DiaryRepository,
-    fileRepo: FileRepository,
-    draftRepository: EntryDraftRepository,
-    weatherClient: WeatherClient,
     isSelectionMode: Boolean,
     selectedIds: Set<String>,
     onSelectionModeChange: (Boolean) -> Unit,
@@ -89,135 +67,14 @@ fun EntriesScreen(
     onSyncRequest: () -> Unit = {},
     syncAvailability: SyncAvailability = SyncAvailability.NotConnected,
     onOpenSettings: () -> Unit = {},
-    onListVisibilityChange: (Boolean) -> Unit = {},
-    onExitGuardChange: (EditorExitGuard?) -> Unit = {},
-    requestedEntrySyncId: String? = null,
-    onRequestedEntryConsumed: () -> Unit = {},
+    onOpenEntry: (String) -> Unit = {},
+    onCreateEntry: () -> Unit = {},
 ) {
     val entriesState by repo.entries.collectAsState()
     val entriesLoadState by repo.entriesState.collectAsState()
 
-    // The stable ID is saveable; the entry itself is always resolved from repository state.
-    var selectedEntrySyncId by rememberSaveable { mutableStateOf<String?>(null) }
-    var recentlyCommittedEntry by remember { mutableStateOf<DiaryEntry?>(null) }
-    var isCreating by rememberSaveable { mutableStateOf(false) }
-    var initialDraftChecked by remember { mutableStateOf(false) }
-    var draftRecoveryError by remember { mutableStateOf<String?>(null) }
-    val selectedEntry =
-        recentlyCommittedEntry?.takeIf { it.syncId == selectedEntrySyncId }
-            ?: entriesState.firstOrNull { it.syncId == selectedEntrySyncId }
-
-    LaunchedEffect(requestedEntrySyncId) {
-        if (requestedEntrySyncId != null) {
-            selectedEntrySyncId = requestedEntrySyncId
-            isCreating = false
-            onRequestedEntryConsumed()
-        }
-    }
-
-    LaunchedEffect(entriesState, recentlyCommittedEntry) {
-        if (recentlyCommittedEntry != null && entriesState.any { it == recentlyCommittedEntry }) {
-            recentlyCommittedEntry = null
-        }
-    }
-
-    LaunchedEffect(draftRepository) {
-        try {
-            val newDraft = draftRepository.load(EntryDraftKey.NewEntry)
-            if (newDraft != null) {
-                // Save and draft deletion use different stores and cannot be transactional. If the entry
-                // already exists, its stable target sync ID proves the commit completed and this is only
-                // interrupted cleanup.
-                val committedEntry = repo.getAll().firstOrNull { it.syncId == newDraft.targetSyncId }
-                if (committedEntry == null) {
-                    isCreating = true
-                } else {
-                    draftRepository.delete(EntryDraftKey.NewEntry)
-                }
-            }
-        } catch (e: Exception) {
-            Logger.e("EntriesScreen", "New-entry draft recovery failed: $e")
-            draftRecoveryError = "Couldn’t restore the saved entry draft."
-        } finally {
-            initialDraftChecked = true
-        }
-    }
-
-    if (draftRecoveryError != null) {
-        AlertDialog(
-            onDismissRequest = { draftRecoveryError = null },
-            title = { Text("Draft recovery unavailable") },
-            text = { Text(draftRecoveryError!!) },
-            confirmButton = { Button(onClick = { draftRecoveryError = null }) { Text("OK") } },
-        )
-    }
-
-    val isListVisible = initialDraftChecked && !isCreating && selectedEntrySyncId == null
-    DisposableEffect(isListVisible) {
-        onListVisibilityChange(isListVisible)
-        onDispose {
-            if (isListVisible) {
-                onListVisibilityChange(false)
-            }
-        }
-    }
-
-    if (!initialDraftChecked) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            CircularProgressIndicator()
-        }
-    } else if (isCreating || selectedEntrySyncId != null) {
-        // Details view (New or Edit)
-        if (isCreating || selectedEntry != null) {
-            EntryDetailsScreen(
-                entry = selectedEntry,
-                weatherClient = weatherClient,
-                fileRepo = fileRepo,
-                isSyncing = isSyncing,
-                onSyncRequest = onSyncRequest,
-                draftRepository = draftRepository,
-                onExitGuardChange = onExitGuardChange,
-                onSave = { entry, momentIds ->
-                    // Keep a local canonical value until Room's Flow emits the write. This avoids briefly
-                    // treating a successfully inserted entry as another new-entry editor while the database
-                    // notification catches up.
-                    val savedEntry =
-                        if (isCreating) {
-                            val newId = repo.insert(entry)
-                            entry.copy(id = newId)
-                        } else {
-                            repo.update(entry)
-                            entry
-                        }
-                    recentlyCommittedEntry = savedEntry
-                    fileRepo.replaceLinksForEntry(savedEntry.syncId, momentIds)
-                    selectedEntrySyncId = savedEntry.syncId
-                    isCreating = false
-                    savedEntry
-                },
-                onCancel = {
-                    isCreating = false
-                    selectedEntrySyncId = null
-                    recentlyCommittedEntry = null
-                    onExitGuardChange(null)
-                },
-            )
-        } else {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-    } else {
-        val contentState = entriesLoadState
-        // List view
+    val contentState = entriesLoadState
+    run {
         Scaffold(
             floatingActionButton = {
                 if (!isSelectionMode) {
@@ -240,7 +97,7 @@ fun EntriesScreen(
                             }
                         }
                         if (entriesState.isNotEmpty()) {
-                            FloatingActionButton(onClick = { isCreating = true }, shape = RoundedCornerShape(16.dp)) {
+                            FloatingActionButton(onClick = onCreateEntry, shape = RoundedCornerShape(16.dp)) {
                                 Icon(Icons.Default.Add, contentDescription = "New Diary Entry")
                             }
                         }
@@ -269,7 +126,7 @@ fun EntriesScreen(
                             title = "Write your first entry",
                             description = "Capture a thought, memory, or moment from today.",
                             actionLabel = "New entry",
-                            onAction = { isCreating = true },
+                            onAction = onCreateEntry,
                         )
                     } else {
                         LazyColumn(
@@ -297,7 +154,7 @@ fun EntriesScreen(
                                                             onSelectionModeChange(false)
                                                         }
                                                     } else {
-                                                        selectedEntrySyncId = entry.syncId
+                                                        onOpenEntry(entry.syncId)
                                                     }
                                                 },
                                                 onLongClick = {
