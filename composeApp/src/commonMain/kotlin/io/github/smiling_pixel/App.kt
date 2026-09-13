@@ -2,8 +2,6 @@ package io.github.smiling_pixel
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
@@ -45,7 +43,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
@@ -66,7 +63,6 @@ import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.MomentEntryLink
 import io.github.smiling_pixel.preference.getSettingsRepository
 import io.github.smiling_pixel.screens.EntriesScreen
-import io.github.smiling_pixel.screens.EntryDetailsScreen
 import io.github.smiling_pixel.screens.InsightsScreen
 import io.github.smiling_pixel.screens.MomentsScreen
 import io.github.smiling_pixel.screens.OperationEvent
@@ -80,68 +76,6 @@ import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.util.Logger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-
-@Serializable
-sealed interface AppRoute
-
-/** Identifies the top-level tab that owns a nested route. */
-@Serializable
-enum class AppTab {
-    ENTRIES,
-    SEARCH,
-    MOMENTS,
-    INSIGHTS,
-    SETTINGS,
-}
-
-@Serializable
-object EntriesRoute : AppRoute
-
-/** Destination for searching and filtering diary entries. */
-@Serializable
-object SearchRoute : AppRoute
-
-@Serializable
-object MomentsRoute : AppRoute
-
-@Serializable
-object InsightsRoute : AppRoute
-
-@Serializable
-object SettingsRoute : AppRoute
-
-/** Displays a committed diary entry resolved by its stable synchronization identifier. */
-@Serializable
-data class EntryDetailsRoute(
-    val syncId: String,
-    val origin: AppTab = AppTab.ENTRIES,
-) : AppRoute
-
-/** Displays the durable new-entry draft editor. */
-@Serializable
-data class NewEntryRoute(
-    val origin: AppTab = AppTab.ENTRIES,
-) : AppRoute
-
-/** Displays the profile screen and records the tab to select when it is dismissed. */
-@Serializable
-data class ProfileRoute(
-    val returnTab: AppTab = AppTab.ENTRIES,
-) : AppRoute
-
-/** Maps a route to the top-level tab that should be highlighted in the bottom navigation. */
-fun AppRoute.toAppTab(): AppTab =
-    when (this) {
-        EntriesRoute -> AppTab.ENTRIES
-        SearchRoute -> AppTab.SEARCH
-        MomentsRoute -> AppTab.MOMENTS
-        InsightsRoute -> AppTab.INSIGHTS
-        SettingsRoute -> AppTab.SETTINGS
-        is EntryDetailsRoute -> origin
-        is NewEntryRoute -> origin
-        is ProfileRoute -> returnTab
-    }
 
 /**
  * Displays the MarkDay application.
@@ -213,18 +147,7 @@ fun App(
         val snackbarHostState = remember { SnackbarHostState() }
         val navController = rememberNavController()
         val currentBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentRoute = currentBackStackEntry?.let { entry ->
-            when {
-                entry.destination.hasRoute<EntryDetailsRoute>() -> entry.toRoute<EntryDetailsRoute>()
-                entry.destination.hasRoute<NewEntryRoute>() -> entry.toRoute<NewEntryRoute>()
-                entry.destination.hasRoute<ProfileRoute>() -> entry.toRoute<ProfileRoute>()
-                entry.destination.hasRoute<SearchRoute>() -> SearchRoute
-                entry.destination.hasRoute<MomentsRoute>() -> MomentsRoute
-                entry.destination.hasRoute<InsightsRoute>() -> InsightsRoute
-                entry.destination.hasRoute<SettingsRoute>() -> SettingsRoute
-                else -> EntriesRoute
-            }
-        } ?: EntriesRoute
+        val currentRoute = currentBackStackEntry?.toAppRoute() ?: EntriesRoute
         val selectedTab = currentRoute.toAppTab()
 
         var isSelectionMode by remember { mutableStateOf(false) }
@@ -326,14 +249,10 @@ fun App(
             }
         }
 
-        fun navigateToEntryOrNew(route: AppRoute) {
+        fun navigateTo(route: AppRoute) {
             requestNavigation {
                 navController.navigate(route) { launchSingleTop = true }
             }
-        }
-
-        fun navigateToNewEntry(origin: AppTab = AppTab.ENTRIES) {
-            navigateToEntryOrNew(NewEntryRoute(origin))
         }
 
         PlatformDraftExitProtection(
@@ -536,7 +455,7 @@ fun App(
                             }
                             if (currentRoute !is ProfileRoute && currentRoute !is SearchRoute) {
                                 IconButton(onClick = {
-                                    navigateToEntryOrNew(ProfileRoute(selectedTab))
+                                    navigateTo(ProfileRoute(selectedTab))
                                 }) {
                                     Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                                 }
@@ -592,7 +511,7 @@ fun App(
                                 navigateToTab(SettingsRoute)
                             },
                             onOpenEntry = { navigateToEntry(it, AppTab.ENTRIES) },
-                            onCreateEntry = { navigateToNewEntry() },
+                            onCreateEntry = { navigateTo(NewEntryRoute()) },
                         )
                     }
                     composable<SearchRoute> {
@@ -672,77 +591,6 @@ fun App(
                     }
                 }
             }
-        }
-    }
-}
-
-/** Resolves a typed entry route and renders its editor, optionally beside the Entries list on wide screens. */
-@Composable
-private fun EntryDetailsDestination(
-    route: AppRoute,
-    repo: DiaryRepository,
-    fileRepo: FileRepository,
-    draftRepository: EntryDraftRepository,
-    weatherClient: GoogleWeatherClient,
-    isSyncing: Boolean,
-    onSyncRequest: () -> Unit,
-    onExitGuardChange: (EditorExitGuard?) -> Unit,
-    onBack: () -> Unit,
-    onOpenEntry: (String) -> Unit,
-    onSave: suspend (DiaryEntry, Set<Long>) -> DiaryEntry,
-) {
-    val entries by repo.entries.collectAsState()
-    val entry = (route as? EntryDetailsRoute)?.let { requested ->
-        entries.firstOrNull { it.syncId == requested.syncId }
-    }
-    if (route is EntryDetailsRoute && entry == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("This entry is no longer available.")
-        }
-        return
-    }
-
-    @Composable
-    fun Editor() {
-        EntryDetailsScreen(
-            entry = entry,
-            weatherClient = weatherClient,
-            fileRepo = fileRepo,
-            isSyncing = isSyncing,
-            onSyncRequest = onSyncRequest,
-            draftRepository = draftRepository,
-            onExitGuardChange = onExitGuardChange,
-            onSave = onSave,
-            onCancel = onBack,
-        )
-    }
-
-    val origin = when (route) {
-        is EntryDetailsRoute -> route.origin
-        is NewEntryRoute -> route.origin
-        else -> AppTab.ENTRIES
-    }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (origin == AppTab.ENTRIES && maxWidth >= 840.dp) {
-            // The route remains the source of truth for the selected detail while the list becomes a companion pane.
-            Row(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(0.42f).fillMaxSize()) {
-                    EntriesScreen(
-                        repo = repo,
-                        isSelectionMode = false,
-                        selectedIds = emptySet(),
-                        onSelectionModeChange = {},
-                        onSelectionChange = {},
-                        isSyncing = isSyncing,
-                        onSyncRequest = onSyncRequest,
-                        onOpenEntry = onOpenEntry,
-                        onCreateEntry = {},
-                    )
-                }
-                Box(Modifier.weight(0.58f).fillMaxSize()) { Editor() }
-            }
-        } else {
-            Editor()
         }
     }
 }
