@@ -33,6 +33,7 @@ sealed interface EntryDraftKey {
  * @property weatherCondition Optional weather condition.
  * @property minTemperature Optional minimum temperature.
  * @property maxTemperature Optional maximum temperature.
+ * @property moodEmoji Optional emoji selected to summarize the draft's mood.
  * @property createdAtEpochMilliseconds Creation time retained when the draft becomes a diary entry.
  * @property draftUpdatedAtEpochMilliseconds Time at which this snapshot was created.
  * @property momentIds Local Moments selected for the eventual committed entry.
@@ -48,6 +49,8 @@ data class EntryDraft(
     val weatherCondition: String? = null,
     val minTemperature: Double? = null,
     val maxTemperature: Double? = null,
+    /** Optional emoji selected by the user; null means no mood is selected. */
+    val moodEmoji: String? = null,
     val createdAtEpochMilliseconds: Long,
     val draftUpdatedAtEpochMilliseconds: Long,
     val momentIds: List<Long> = emptyList(),

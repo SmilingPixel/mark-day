@@ -31,4 +31,6 @@ data class DiaryEntry(
     val weatherCondition: String? = null,
     val minTemperature: Double? = null,
     val maxTemperature: Double? = null,
+    /** Optional emoji selected by the user to summarize the entry's mood. */
+    val moodEmoji: String? = null,
 )
