@@ -377,6 +377,12 @@ fun EntriesScreen(
                                                 text = "Date: ${entry.entryDate}",
                                                 style = MaterialTheme.typography.bodySmall,
                                             )
+                                            entry.moodEmoji?.let { mood ->
+                                                Text(
+                                                    text = "Mood: $mood",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                            }
                                         }
                                     }
                                 }
