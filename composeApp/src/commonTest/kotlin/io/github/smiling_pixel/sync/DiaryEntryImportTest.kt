@@ -40,6 +40,7 @@ class DiaryEntryImportTest {
             assertEquals(0, result.updated)
             assertEquals(entry.syncId, dao.getAll().single().syncId)
             assertEquals("Imported", dao.getAll().single().title)
+            assertEquals("🙂", dao.getAll().single().moodEmoji)
         }
 
     @Test
@@ -109,6 +110,7 @@ class DiaryEntryImportTest {
             assertEquals(0, result.skippedConflicts)
             assertEquals(9, saved.id)
             assertEquals("Imported", saved.title)
+            assertEquals("🙂", saved.moodEmoji)
         }
 
     @Test
@@ -164,6 +166,7 @@ class DiaryEntryImportTest {
             weatherCondition = "Sunny",
             minTemperature = 10.5,
             maxTemperature = 20.5,
+            moodEmoji = "🙂",
         )
 
     private class NonEmittingDiaryDao(
