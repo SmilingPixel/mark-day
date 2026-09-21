@@ -41,13 +41,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.navDeepLink
+import androidx.navigation.toRoute
 import coil3.compose.setSingletonImageLoaderFactory
 import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
 import io.github.smiling_pixel.database.InMemoryFileMetadataDao
 import io.github.smiling_pixel.draft.EditorExitGuard
+import io.github.smiling_pixel.draft.EntryDraftKey
 import io.github.smiling_pixel.draft.EntryDraftRepository
 import io.github.smiling_pixel.draft.InMemoryEntryDraftRepository
 import io.github.smiling_pixel.draft.PlatformDraftExitProtection
@@ -71,29 +76,6 @@ import io.github.smiling_pixel.theme.ThemeMode
 import io.github.smiling_pixel.util.Logger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-
-@Serializable
-sealed interface AppRoute
-
-@Serializable
-object EntriesRoute : AppRoute
-
-/** Destination for searching and filtering diary entries. */
-@Serializable
-object SearchRoute : AppRoute
-
-@Serializable
-object MomentsRoute : AppRoute
-
-@Serializable
-object InsightsRoute : AppRoute
-
-@Serializable
-object SettingsRoute : AppRoute
-
-@Serializable
-object ProfileRoute : AppRoute
 
 /**
  * Displays the MarkDay application.
@@ -164,27 +146,43 @@ fun App(
         val diarySyncState = rememberDiarySyncState(repo) { pendingOperation = it }
         val snackbarHostState = remember { SnackbarHostState() }
         val navController = rememberNavController()
-        var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
-        // remember previous to return from profile
-        var previous by remember { mutableStateOf<AppRoute>(EntriesRoute) }
+        val currentBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = currentBackStackEntry?.toAppRoute() ?: EntriesRoute
+        val selectedTab = currentRoute.toAppTab()
 
         var isSelectionMode by remember { mutableStateOf(false) }
         var selectedIds by remember { mutableStateOf(emptySet<String>()) }
-        var isEntriesListVisible by remember { mutableStateOf(false) }
-        var searchSelectedEntrySyncId by rememberSaveable { mutableStateOf<String?>(null) }
         var editorExitGuard by remember { mutableStateOf<EditorExitGuard?>(null) }
         var showUnsafeNavigationDialog by remember { mutableStateOf(false) }
         var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
         var showDeleteConfirmation by remember { mutableStateOf(false) }
         var pendingDeletedEntries by remember { mutableStateOf<List<DiaryEntry>>(emptyList()) }
         var pendingDeletedEntryLinks by remember { mutableStateOf<List<MomentEntryLink>>(emptyList()) }
-        var requestedEntryFromMoments by rememberSaveable { mutableStateOf<String?>(null) }
+        var restoredNewDraft by rememberSaveable { mutableStateOf(false) }
         var undoToken by remember { mutableStateOf(0) }
         var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
 
         DisposableEffect(repo) {
             val autoSyncJob = startAutoSync(repo)
             onDispose { autoSyncJob?.cancel() }
+        }
+
+        LaunchedEffect(draftRepository) {
+            if (restoredNewDraft) return@LaunchedEffect
+            restoredNewDraft = true
+            try {
+                val draft = draftRepository.load(EntryDraftKey.NewEntry)
+                if (draft != null && repo.getAll().none { it.syncId == draft.targetSyncId }) {
+                    navController.navigate(NewEntryRoute()) {
+                        launchSingleTop = true
+                    }
+                } else if (draft != null) {
+                    // The entry commit may have succeeded just before draft cleanup was interrupted.
+                    draftRepository.delete(EntryDraftKey.NewEntry)
+                }
+            } catch (e: Exception) {
+                Logger.e("App", "New-entry draft recovery failed: $e")
+            }
         }
         detailsOperation?.let { event ->
             AlertDialog(
@@ -211,29 +209,6 @@ fun App(
             )
         }
 
-        PlatformDraftExitProtection(
-            guard = editorExitGuard,
-            onBackRequest =
-                if (selected == SearchRoute) {
-                    {
-                        if (searchSelectedEntrySyncId != null) {
-                            searchSelectedEntrySyncId = null
-                        } else {
-                            selected = EntriesRoute
-                            navController.popBackStack()
-                        }
-                    }
-                } else {
-                    null
-                },
-        )
-        // Desktop owns its Window outside this composable, so publish the same guard used by in-app navigation to the
-        // host. DisposableEffect also clears stale callbacks when the Entries destination leaves composition.
-        DisposableEffect(editorExitGuard) {
-            onExitGuardChange(editorExitGuard)
-            onDispose { onExitGuardChange(null) }
-        }
-
         fun requestNavigation(action: () -> Unit) {
             val guard = editorExitGuard
             if (guard?.hasUnpersistedChanges != true) {
@@ -250,6 +225,45 @@ fun App(
                     showUnsafeNavigationDialog = true
                 }
             }
+        }
+
+        fun navigateToTab(route: AppRoute) {
+            requestNavigation {
+                navController.navigate(route) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
+
+        fun navigateToEntry(syncId: String, origin: AppTab) {
+            requestNavigation {
+                if (currentRoute is EntryDetailsRoute && currentRoute.origin == origin) {
+                    // A wide list/detail pane replaces its selection instead of creating a detail-history entry.
+                    navController.popBackStack()
+                }
+                navController.navigate(EntryDetailsRoute(syncId, origin)) {
+                    launchSingleTop = true
+                }
+            }
+        }
+
+        fun navigateTo(route: AppRoute) {
+            requestNavigation {
+                navController.navigate(route) { launchSingleTop = true }
+            }
+        }
+
+        PlatformDraftExitProtection(
+            guard = editorExitGuard,
+            onBackRequest = { requestNavigation { navController.popBackStack() } },
+        )
+        // Desktop owns its Window outside this composable, so publish the same guard used by in-app navigation to the
+        // host. DisposableEffect also clears stale callbacks when the Entries destination leaves composition.
+        DisposableEffect(editorExitGuard) {
+            onExitGuardChange(editorExitGuard)
+            onDispose { onExitGuardChange(null) }
         }
 
         if (showUnsafeNavigationDialog) {
@@ -343,7 +357,7 @@ fun App(
             )
         }
 
-        LaunchedEffect(selected) {
+        LaunchedEffect(selectedTab) {
             isSelectionMode = false
             selectedIds = emptySet()
         }
@@ -407,49 +421,41 @@ fun App(
                     CenterAlignedTopAppBar(
                         title = {
                             val title =
-                                when (selected) {
+                                when (currentRoute) {
                                     EntriesRoute -> "Entries"
                                     SearchRoute -> "Search"
                                     MomentsRoute -> "Moments"
                                     InsightsRoute -> "Insights"
                                     SettingsRoute -> "Settings"
-                                    ProfileRoute -> "Profile"
+                                    is ProfileRoute -> "Profile"
+                                    is EntryDetailsRoute -> "Entry"
+                                    is NewEntryRoute -> "New Entry"
                                 }
                             Text(title)
                         },
                         navigationIcon = {
-                            if (selected == SearchRoute) {
+                            if (currentRoute == SearchRoute ||
+                                (currentRoute !is EntriesRoute && currentRoute !is MomentsRoute &&
+                                    currentRoute !is InsightsRoute && currentRoute !is SettingsRoute)
+                            ) {
                                 IconButton(onClick = {
-                                    requestNavigation {
-                                        if (searchSelectedEntrySyncId != null) {
-                                            searchSelectedEntrySyncId = null
-                                        } else {
-                                            selected = EntriesRoute
-                                            navController.popBackStack()
-                                        }
-                                    }
+                                    requestNavigation { navController.popBackStack() }
                                 }) {
                                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                                 }
                             }
                         },
                         actions = {
-                            if (selected == EntriesRoute && isEntriesListVisible) {
+                            if (selectedTab == AppTab.ENTRIES && currentRoute == EntriesRoute) {
                                 IconButton(onClick = {
-                                    searchSelectedEntrySyncId = null
-                                    selected = SearchRoute
-                                    navController.navigate(SearchRoute)
+                                    navigateToTab(SearchRoute)
                                 }) {
                                     Icon(Icons.Default.Search, contentDescription = "Search entries")
                                 }
                             }
-                            if (selected != ProfileRoute && selected != SearchRoute) {
+                            if (currentRoute !is ProfileRoute && currentRoute !is SearchRoute) {
                                 IconButton(onClick = {
-                                    requestNavigation {
-                                        previous = selected
-                                        selected = ProfileRoute
-                                        navController.navigate(ProfileRoute)
-                                    }
+                                    navigateTo(ProfileRoute(selectedTab))
                                 }) {
                                     Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                                 }
@@ -461,52 +467,28 @@ fun App(
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(
-                        selected = selected == EntriesRoute || selected == SearchRoute,
+                        selected = selectedTab == AppTab.ENTRIES || selectedTab == AppTab.SEARCH,
                         onClick = {
-                            requestNavigation {
-                                if (selected == SearchRoute) {
-                                    searchSelectedEntrySyncId = null
-                                    selected = EntriesRoute
-                                    navController.popBackStack()
-                                } else {
-                                    selected = EntriesRoute
-                                    navController.navigate(EntriesRoute)
-                                }
-                            }
+                            navigateToTab(EntriesRoute)
                         },
                         icon = { Text("E") },
                         label = { Text("Entries") },
                     )
                     NavigationBarItem(
-                        selected = selected == MomentsRoute,
-                        onClick = {
-                            requestNavigation {
-                                selected = MomentsRoute
-                                navController.navigate(MomentsRoute)
-                            }
-                        },
+                        selected = selectedTab == AppTab.MOMENTS,
+                        onClick = { navigateToTab(MomentsRoute) },
                         icon = { Text("M") },
                         label = { Text("Moments") },
                     )
                     NavigationBarItem(
-                        selected = selected == InsightsRoute,
-                        onClick = {
-                            requestNavigation {
-                                selected = InsightsRoute
-                                navController.navigate(InsightsRoute)
-                            }
-                        },
+                        selected = selectedTab == AppTab.INSIGHTS,
+                        onClick = { navigateToTab(InsightsRoute) },
                         icon = { Text("I") },
                         label = { Text("Insights") },
                     )
                     NavigationBarItem(
-                        selected = selected == SettingsRoute,
-                        onClick = {
-                            requestNavigation {
-                                selected = SettingsRoute
-                                navController.navigate(SettingsRoute)
-                            }
-                        },
+                        selected = selectedTab == AppTab.SETTINGS,
+                        onClick = { navigateToTab(SettingsRoute) },
                         icon = { Text("S") },
                         label = { Text("Settings") },
                     )
@@ -518,9 +500,6 @@ fun App(
                     composable<EntriesRoute> {
                         EntriesScreen(
                             repo = repo,
-                            fileRepo = fileRepo,
-                            draftRepository = draftRepository,
-                            weatherClient = weatherClient,
                             isSelectionMode = isSelectionMode,
                             selectedIds = selectedIds,
                             onSelectionModeChange = { isSelectionMode = it },
@@ -529,37 +508,23 @@ fun App(
                             onSyncRequest = diarySyncState::requestSync,
                             syncAvailability = diarySyncState.availability,
                             onOpenSettings = {
-                                selected = SettingsRoute
-                                navController.navigate(SettingsRoute)
+                                navigateToTab(SettingsRoute)
                             },
-                            onListVisibilityChange = { isEntriesListVisible = it },
-                            onExitGuardChange = { editorExitGuard = it },
-                            requestedEntrySyncId = requestedEntryFromMoments,
-                            onRequestedEntryConsumed = { requestedEntryFromMoments = null },
+                            onOpenEntry = { navigateToEntry(it, AppTab.ENTRIES) },
+                            onCreateEntry = { navigateTo(NewEntryRoute()) },
                         )
                     }
                     composable<SearchRoute> {
                         SearchScreen(
                             repo = repo,
-                            fileRepo = fileRepo,
-                            draftRepository = draftRepository,
-                            weatherClient = weatherClient,
-                            selectedEntrySyncId = searchSelectedEntrySyncId,
-                            onSelectedEntryChange = { searchSelectedEntrySyncId = it },
-                            isSyncing = diarySyncState.isSyncing,
-                            onSyncRequest = diarySyncState::requestSync,
-                            onExitGuardChange = { editorExitGuard = it },
+                            onOpenEntry = { navigateToEntry(it, AppTab.SEARCH) },
                         )
                     }
                     composable<MomentsRoute> {
                         MomentsScreen(
                             fileRepo = fileRepo,
                             diaryEntries = repo.entries.value,
-                            onOpenEntry = { entrySyncId ->
-                                requestedEntryFromMoments = entrySyncId
-                                selected = EntriesRoute
-                                navController.navigate(EntriesRoute)
-                            },
+                            onOpenEntry = { entrySyncId -> navigateToEntry(entrySyncId, AppTab.MOMENTS) },
                         ) { pendingOperation = it }
                     }
                     composable<InsightsRoute> {
@@ -568,12 +533,61 @@ fun App(
                     composable<SettingsRoute> {
                         SettingsScreen(repo = repo) { pendingOperation = it }
                     }
-                    composable<ProfileRoute> { backStackEntry ->
+                    composable<ProfileRoute> {
                         ProfileScreen(onBack = {
-                            // return to previous selection when profile is dismissed
-                            selected = previous
-                            navController.popBackStack()
+                            requestNavigation { navController.popBackStack() }
                         })
+                    }
+                    composable<EntryDetailsRoute>(
+                        deepLinks = listOf(
+                            navDeepLink {
+                                uriPattern = "markday://entry/{syncId}"
+                            },
+                        ),
+                    ) { backStackEntry ->
+                        val route = backStackEntry.toRoute<EntryDetailsRoute>()
+                        EntryDetailsDestination(
+                            route = route,
+                            repo = repo,
+                            fileRepo = fileRepo,
+                            draftRepository = draftRepository,
+                            weatherClient = weatherClient,
+                            isSyncing = diarySyncState.isSyncing,
+                            onSyncRequest = diarySyncState::requestSync,
+                            onExitGuardChange = { editorExitGuard = it },
+                            onBack = { requestNavigation { navController.popBackStack() } },
+                            onOpenEntry = { navigateToEntry(it, AppTab.ENTRIES) },
+                            onSave = { saved, momentIds ->
+                                repo.update(saved)
+                                fileRepo.replaceLinksForEntry(saved.syncId, momentIds)
+                                saved
+                            },
+                        )
+                    }
+                    composable<NewEntryRoute> { backStackEntry ->
+                        val route = backStackEntry.toRoute<NewEntryRoute>()
+                        EntryDetailsDestination(
+                            route = route,
+                            repo = repo,
+                            fileRepo = fileRepo,
+                            draftRepository = draftRepository,
+                            weatherClient = weatherClient,
+                            isSyncing = diarySyncState.isSyncing,
+                            onSyncRequest = diarySyncState::requestSync,
+                            onExitGuardChange = { editorExitGuard = it },
+                            onBack = { requestNavigation { navController.popBackStack() } },
+                            onOpenEntry = { navigateToEntry(it, AppTab.ENTRIES) },
+                            onSave = { saved, momentIds ->
+                                val persisted = saved.copy(id = repo.insert(saved))
+                                fileRepo.replaceLinksForEntry(persisted.syncId, momentIds)
+                                // Replace the transient new-entry route with the canonical stable-ID destination.
+                                navController.navigate(EntryDetailsRoute(persisted.syncId, route.origin)) {
+                                    popUpTo<NewEntryRoute> { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                                persisted
+                            },
+                        )
                     }
                 }
             }
