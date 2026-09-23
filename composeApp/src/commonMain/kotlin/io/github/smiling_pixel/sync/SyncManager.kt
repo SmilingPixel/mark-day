@@ -340,6 +340,7 @@ private data class SyncEntryPayload(
     val weatherCondition: String? = null,
     val minTemperature: Double? = null,
     val maxTemperature: Double? = null,
+    val moodEmoji: String? = null,
     val content: String,
 )
 
@@ -355,6 +356,7 @@ internal fun encodeEntryForSync(entry: DiaryEntry): ByteArray {
             weatherCondition = entry.weatherCondition,
             minTemperature = entry.minTemperature,
             maxTemperature = entry.maxTemperature,
+            moodEmoji = entry.moodEmoji,
             content = entry.content,
         )
     return syncPayloadJson.encodeToString(SyncEntryPayload.serializer(), payload).encodeToByteArray()
@@ -378,6 +380,7 @@ internal fun decodeEntryForSync(
         val weatherCondition = payload.weatherCondition
         val minTemperature = payload.minTemperature
         val maxTemperature = payload.maxTemperature
+        val moodEmoji = payload.moodEmoji
         val content = payload.content
         return original.copy(
             syncId = syncId,
@@ -388,6 +391,7 @@ internal fun decodeEntryForSync(
             weatherCondition = weatherCondition,
             minTemperature = minTemperature,
             maxTemperature = maxTemperature,
+            moodEmoji = moodEmoji,
             content = content,
         )
     } catch (e: Exception) {

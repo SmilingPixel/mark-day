@@ -42,6 +42,20 @@ class InMemoryDiaryDaoTest {
         }
 
     @Test
+    fun moodRoundTripCanBeSelectedAndCleared() =
+        runTest {
+            val dao = InMemoryDiaryDao()
+            dao.insert(DiaryEntry(id = 0, title = "Title", content = "Content", moodEmoji = "😀"))
+
+            val saved = dao.getAll().single()
+            assertEquals("😀", saved.moodEmoji)
+
+            dao.update(saved.copy(moodEmoji = null))
+
+            assertEquals(null, dao.getAll().single().moodEmoji)
+        }
+
+    @Test
     fun testInsertPreservesUpdatedAt() =
         runTest {
             val dao = InMemoryDiaryDao()

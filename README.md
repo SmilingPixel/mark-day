@@ -8,6 +8,7 @@ MarkDay is a cross-platform diary and journaling application built with **Kotlin
 - **Unified UI:** Beautiful and consistent Material 3 interface across all devices, powered by Compose Multiplatform.
 - **Local Storage:** Fast and reliable text storage utilizing Room Multiplatform (SQLite) on Android, Desktop, and iOS. Web (Wasm) uses in-memory storage with browser localStorage for preferences.
 - **Rich Content:** Support for rich text and image rendering (via multiplatform-markdown-renderer and Coil).
+- **Mood Tracking:** Optionally add a curated emoji mood to each diary entry and see it in entry lists and details.
 - **Sync & Backup (Android/Desktop JVM only):** Google Drive integration for seamless data backups and remote sync. Web (Wasm) support is not implemented yet.
 - **Diary Import/Export:** Export diary entries as sync-compatible local text files and import them later to restore backed-up entries.
 - **Draft Recovery:** New and existing entry edits are restored from device-local autosaved drafts after interruptions.

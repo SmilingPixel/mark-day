@@ -14,4 +14,5 @@ data class RoomDiaryEntry(
     val createdAt: Long,
     val updatedAt: Long,
     val entryDate: Long, // epoch days
+    val moodEmoji: String? = null,
 )

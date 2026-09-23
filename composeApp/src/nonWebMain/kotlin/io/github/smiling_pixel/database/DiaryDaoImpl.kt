@@ -21,6 +21,7 @@ class DiaryDaoImpl(
                     createdAt = Instant.fromEpochMilliseconds(re.createdAt),
                     updatedAt = Instant.fromEpochMilliseconds(re.updatedAt),
                     entryDate = LocalDate.fromEpochDays(re.entryDate.toInt()),
+                    moodEmoji = re.moodEmoji,
                 )
             }
         }
@@ -35,6 +36,7 @@ class DiaryDaoImpl(
                 createdAt = Instant.fromEpochMilliseconds(re.createdAt),
                 updatedAt = Instant.fromEpochMilliseconds(re.updatedAt),
                 entryDate = LocalDate.fromEpochDays(re.entryDate.toInt()),
+                moodEmoji = re.moodEmoji,
             )
         }
 
@@ -51,6 +53,7 @@ class DiaryDaoImpl(
                     createdAt = entry.createdAt.toEpochMilliseconds(),
                     updatedAt = entry.updatedAt.toEpochMilliseconds(),
                     entryDate = entry.entryDate.toEpochDays(),
+                    moodEmoji = entry.moodEmoji,
                 ),
             )
         return id.toInt()
@@ -66,6 +69,7 @@ class DiaryDaoImpl(
                 createdAt = entry.createdAt.toEpochMilliseconds(),
                 updatedAt = entry.updatedAt.toEpochMilliseconds(),
                 entryDate = entry.entryDate.toEpochDays(),
+                moodEmoji = entry.moodEmoji,
             ),
         )
     }
@@ -80,6 +84,7 @@ class DiaryDaoImpl(
                 createdAt = entry.createdAt.toEpochMilliseconds(),
                 updatedAt = entry.updatedAt.toEpochMilliseconds(),
                 entryDate = entry.entryDate.toEpochDays(),
+                moodEmoji = entry.moodEmoji,
             ),
         )
     }

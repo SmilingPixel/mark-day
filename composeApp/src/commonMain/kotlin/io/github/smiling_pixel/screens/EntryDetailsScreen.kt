@@ -19,6 +19,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -133,6 +135,8 @@ fun EntryDetailsScreen(
     var weatherCondition by rememberSaveable(editorKey) { mutableStateOf(entry?.weatherCondition ?: "") }
     var minTemp by rememberSaveable(editorKey) { mutableStateOf(entry?.minTemperature) }
     var maxTemp by rememberSaveable(editorKey) { mutableStateOf(entry?.maxTemperature) }
+    var moodEmoji by rememberSaveable(editorKey) { mutableStateOf(entry?.moodEmoji) }
+    var showMoodMenu by rememberSaveable(editorKey) { mutableStateOf(false) }
     var isHydrated by rememberSaveable(editorKey) { mutableStateOf(false) }
     var saveState by rememberSaveable(editorKey) { mutableStateOf(DraftSaveState.IDLE) }
     var editorError by rememberSaveable(editorKey) { mutableStateOf<String?>(null) }
@@ -159,6 +163,7 @@ fun EntryDetailsScreen(
             weatherCondition = weatherCondition.ifBlank { null },
             minTemperature = minTemp,
             maxTemperature = maxTemp,
+            moodEmoji = moodEmoji,
             createdAtEpochMilliseconds = createdAtEpochMilliseconds,
             momentIds = selectedMomentIds,
         )
@@ -172,6 +177,7 @@ fun EntryDetailsScreen(
         weatherCondition = snapshot.weatherCondition.orEmpty()
         minTemp = snapshot.minTemperature
         maxTemp = snapshot.maxTemperature
+        moodEmoji = snapshot.moodEmoji
         selectedMomentIds = snapshot.momentIds
     }
 
@@ -485,6 +491,7 @@ fun EntryDetailsScreen(
                                     weatherCondition = weatherCondition.ifBlank { null },
                                     minTemperature = minTemp,
                                     maxTemperature = maxTemp,
+                                    moodEmoji = moodEmoji,
                                 ) ?: DiaryEntry(
                                     id = 0,
                                     syncId = targetSyncId,
@@ -496,6 +503,7 @@ fun EntryDetailsScreen(
                                     weatherCondition = weatherCondition.ifBlank { null },
                                     minTemperature = minTemp,
                                     maxTemperature = maxTemp,
+                                    moodEmoji = moodEmoji,
                                 )
                             try {
                                 // Draft persistence is attempted first but does not block an explicit diary
@@ -618,6 +626,45 @@ fun EntryDetailsScreen(
                     text = "Date: $entryDate",
                     style = MaterialTheme.typography.bodyLarge,
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Mood",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    enabled = isHydrated,
+                    onClick = { showMoodMenu = true },
+                ) {
+                    Text(moodEmoji ?: "None")
+                }
+                DropdownMenu(
+                    expanded = showMoodMenu,
+                    onDismissRequest = { showMoodMenu = false },
+                ) {
+                    MOOD_OPTIONS.forEach { (emoji, label) ->
+                        DropdownMenuItem(
+                            text = { Text("$emoji  $label") },
+                            onClick = {
+                                moodEmoji = emoji
+                                showMoodMenu = false
+                            },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Clear mood") },
+                        onClick = {
+                            moodEmoji = null
+                            showMoodMenu = false
+                        },
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -803,6 +850,14 @@ fun EntryDetailsScreen(
                 Spacer(modifier = Modifier.height(6.dp))
             }
 
+            if (displayedEntry.moodEmoji != null) {
+                Text(
+                    text = "Mood: ${displayedEntry.moodEmoji}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+
             HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -823,6 +878,7 @@ private data class EntryFormSnapshot(
     val weatherCondition: String?,
     val minTemperature: Double?,
     val maxTemperature: Double?,
+    val moodEmoji: String?,
     val createdAtEpochMilliseconds: Long,
     val momentIds: List<Long>,
 ) {
@@ -840,6 +896,7 @@ private data class EntryFormSnapshot(
             weatherCondition = weatherCondition,
             minTemperature = minTemperature,
             maxTemperature = maxTemperature,
+            moodEmoji = moodEmoji,
             createdAtEpochMilliseconds = createdAtEpochMilliseconds,
             draftUpdatedAtEpochMilliseconds = updatedAtEpochMilliseconds,
             momentIds = momentIds,
@@ -861,6 +918,7 @@ private data class EntryFormSnapshot(
                 weatherCondition = entry?.weatherCondition,
                 minTemperature = entry?.minTemperature,
                 maxTemperature = entry?.maxTemperature,
+                moodEmoji = entry?.moodEmoji,
                 createdAtEpochMilliseconds = entry?.createdAt?.toEpochMilliseconds() ?: initialNow,
                 momentIds = momentIds.toList(),
             )
@@ -874,6 +932,7 @@ private data class EntryFormSnapshot(
                 weatherCondition = draft.weatherCondition,
                 minTemperature = draft.minTemperature,
                 maxTemperature = draft.maxTemperature,
+                moodEmoji = draft.moodEmoji,
                 createdAtEpochMilliseconds = draft.createdAtEpochMilliseconds,
                 momentIds = draft.momentIds,
             )
@@ -881,6 +940,20 @@ private data class EntryFormSnapshot(
 }
 
 private const val NEW_ENTRY_EDITOR_KEY = "new-entry"
+
+private val MOOD_OPTIONS =
+    listOf(
+        "😀" to "Joyful",
+        "😄" to "Excited",
+        "🙂" to "Content",
+        "😐" to "Neutral",
+        "😔" to "Sad",
+        "😢" to "Grieving",
+        "😡" to "Angry",
+        "😰" to "Anxious",
+        "😴" to "Tired",
+        "🤩" to "Inspired",
+    )
 
 /**
  * A utility to format byte sizes into human-readable strings (e.g., KB, MB).

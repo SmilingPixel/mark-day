@@ -20,6 +20,7 @@ class SyncManagerCodecTest {
                 weatherCondition = "Sunny",
                 minTemperature = 10.5,
                 maxTemperature = 20.5,
+                moodEmoji = "🤩",
             )
 
         val decoded = decodeEntryForSync(encodeEntryForSync(entry), entry.copy(id = 0))
@@ -32,6 +33,7 @@ class SyncManagerCodecTest {
         assertEquals(entry.weatherCondition, decoded.weatherCondition)
         assertEquals(entry.minTemperature, decoded.minTemperature)
         assertEquals(entry.maxTemperature, decoded.maxTemperature)
+        assertEquals(entry.moodEmoji, decoded.moodEmoji)
     }
 
     @Test

@@ -113,6 +113,7 @@ class EntryDraftRepositoryTest {
             weatherCondition = "Clear",
             minTemperature = 12.5,
             maxTemperature = 24.0,
+            moodEmoji = "🙂",
             createdAtEpochMilliseconds = 100L,
             draftUpdatedAtEpochMilliseconds = 200L,
         )
