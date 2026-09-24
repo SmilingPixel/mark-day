@@ -41,8 +41,12 @@ class GoogleWeatherClient(
             }
         },
 ) : WeatherClient {
+    override suspend fun isConfigured(): Boolean = !settingsRepository.googleWeatherApiKey.first().isNullOrBlank()
+
     private suspend fun getApiKey(): String =
-        settingsRepository.googleWeatherApiKey.first()
+        settingsRepository.googleWeatherApiKey
+            .first()
+            ?.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Google Weather API Key not set")
 
     override suspend fun getWeather(location: Location): WeatherInfo {
