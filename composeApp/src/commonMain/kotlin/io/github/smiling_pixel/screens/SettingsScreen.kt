@@ -68,7 +68,10 @@ import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(repo: DiaryRepository, onOperationEvent: (OperationEvent) -> Unit = {}) {
+fun SettingsScreen(
+    repo: DiaryRepository,
+    onOperationEvent: (OperationEvent) -> Unit = {},
+) {
     val scope = rememberCoroutineScope()
     // Remember the settings repository so recomposition does not recreate a new DataStore-backed
     // repository instance and resubscribe all mapped flows unnecessarily.
@@ -138,7 +141,12 @@ fun SettingsScreen(repo: DiaryRepository, onOperationEvent: (OperationEvent) -> 
                     }
                 val preview = previewDiaryEntryImport(files, repo)
                 if (!preview.hasImportableEntries) {
-                    onOperationEvent(OperationEvent("No diary entries to import.", "Ignored ${preview.invalidFileNames.size} invalid files."))
+                    onOperationEvent(
+                        OperationEvent(
+                            "No diary entries to import.",
+                            "Ignored ${preview.invalidFileNames.size} invalid files.",
+                        ),
+                    )
                     return@launch
                 }
 
@@ -609,7 +617,8 @@ fun SettingsScreen(repo: DiaryRepository, onOperationEvent: (OperationEvent) -> 
             Button(
                 onClick = {
                     scope.launch {
-                        val message = when (val result = exportDiaryEntries(repo.entries.value)) {
+                        val message =
+                            when (val result = exportDiaryEntries(repo.entries.value)) {
                                 is DiaryEntryExportResult.Success -> {
                                     "Exported ${result.fileCount} diary entries."
                                 }

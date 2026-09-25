@@ -10,7 +10,9 @@ sealed interface LoadState<out T> {
     data object Loading : LoadState<Nothing>
 
     /** Content was loaded successfully. */
-    data class Content<T>(val value: T) : LoadState<T>
+    data class Content<T>(
+        val value: T,
+    ) : LoadState<T>
 
     /** Content could not be loaded. */
     data class Error(

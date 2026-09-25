@@ -57,17 +57,16 @@ import io.github.smiling_pixel.draft.EntryDraftKey
 import io.github.smiling_pixel.draft.EntryDraftRepository
 import io.github.smiling_pixel.draft.debounceDraftChanges
 import io.github.smiling_pixel.filesystem.FileRepository
+import io.github.smiling_pixel.location.CurrentLocationResult
+import io.github.smiling_pixel.location.rememberCurrentLocationRequester
 import io.github.smiling_pixel.model.DiaryEntry
 import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.util.Logger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.pow
 import kotlin.time.Clock
@@ -146,6 +145,12 @@ fun EntryDetailsScreen(
     var pendingConflictDraft by remember { mutableStateOf<EntryDraft?>(null) }
     var selectedMomentIds by rememberSaveable(editorKey) { mutableStateOf<List<Long>>(emptyList()) }
     var showAttachmentPicker by remember { mutableStateOf(false) }
+    var showWeatherDialog by remember(editorKey) { mutableStateOf(false) }
+    var weatherDialogState by remember(editorKey) { mutableStateOf(WeatherDialogState.READY) }
+    var latitudeText by remember(editorKey) { mutableStateOf("") }
+    var longitudeText by remember(editorKey) { mutableStateOf("") }
+    var latitudeError by remember(editorKey) { mutableStateOf<String?>(null) }
+    var longitudeError by remember(editorKey) { mutableStateOf<String?>(null) }
 
     val draftKey = entry?.syncId?.let(EntryDraftKey::ExistingEntry) ?: EntryDraftKey.NewEntry
     // The baseline is the committed entry (or the untouched initial new-entry form). Equality with it means there is no
@@ -398,6 +403,123 @@ fun EntryDetailsScreen(
     }
 
     val entryDate = LocalDate.parse(entryDateText)
+
+    fun applyWeather(values: WeatherValues) {
+        weatherCondition = values.condition.orEmpty()
+        minTemp = values.minTemperature
+        maxTemp = values.maxTemperature
+    }
+
+    fun fetchWeather(location: Location) {
+        scope.launch {
+            weatherDialogState = WeatherDialogState.LOADING
+            try {
+                if (!weatherClient.isConfigured()) {
+                    weatherDialogState = WeatherDialogState.API_KEY_MISSING
+                    return@launch
+                }
+                val values =
+                    fetchWeatherForDate(
+                        weatherClient = weatherClient,
+                        location = location,
+                        targetDate = entryDate,
+                        now = Clock.System.now(),
+                        timeZone = TimeZone.currentSystemDefault(),
+                    )
+                if (values == null) {
+                    weatherDialogState = WeatherDialogState.UNAVAILABLE
+                } else {
+                    applyWeather(values)
+                    showWeatherDialog = false
+                    weatherDialogState = WeatherDialogState.READY
+                }
+            } catch (e: Exception) {
+                Logger.e("EntryDetailsScreen", "Weather fetch failed: $e")
+                weatherDialogState = WeatherDialogState.UNAVAILABLE
+            }
+        }
+    }
+
+    val currentLocationRequester =
+        rememberCurrentLocationRequester { result ->
+            when (result) {
+                is CurrentLocationResult.Success -> fetchWeather(result.location)
+                CurrentLocationResult.PermissionDenied -> {
+                    weatherDialogState = WeatherDialogState.PERMISSION_DENIED
+                }
+                CurrentLocationResult.Unavailable,
+                CurrentLocationResult.Unsupported,
+                -> weatherDialogState = WeatherDialogState.UNAVAILABLE
+            }
+        }
+
+    fun openWeatherDialog() {
+        latitudeText = ""
+        longitudeText = ""
+        latitudeError = null
+        longitudeError = null
+        showWeatherDialog = true
+        weatherDialogState = WeatherDialogState.LOADING
+        scope.launch {
+            weatherDialogState =
+                try {
+                    if (weatherClient.isConfigured()) {
+                        WeatherDialogState.READY
+                    } else {
+                        WeatherDialogState.API_KEY_MISSING
+                    }
+                } catch (e: Exception) {
+                    Logger.e("EntryDetailsScreen", "Weather configuration check failed: $e")
+                    WeatherDialogState.UNAVAILABLE
+                }
+        }
+    }
+
+    if (showWeatherDialog) {
+        WeatherLocationDialog(
+            targetDate = entryDate,
+            state = weatherDialogState,
+            supportsCurrentLocation = currentLocationRequester.isSupported,
+            latitude = latitudeText,
+            longitude = longitudeText,
+            latitudeError = latitudeError,
+            longitudeError = longitudeError,
+            onLatitudeChange = {
+                latitudeText = it
+                latitudeError = null
+            },
+            onLongitudeChange = {
+                longitudeText = it
+                longitudeError = null
+            },
+            onUseCurrentLocation = {
+                scope.launch {
+                    weatherDialogState = WeatherDialogState.LOADING
+                    try {
+                        if (weatherClient.isConfigured()) {
+                            // Permission is requested only here, after the user has read the explanation and opted in.
+                            currentLocationRequester.request()
+                        } else {
+                            weatherDialogState = WeatherDialogState.API_KEY_MISSING
+                        }
+                    } catch (e: Exception) {
+                        Logger.e("EntryDetailsScreen", "Weather configuration check failed: $e")
+                        weatherDialogState = WeatherDialogState.UNAVAILABLE
+                    }
+                }
+            },
+            onFetchManual = {
+                when (val result = parseWeatherLocation(latitudeText, longitudeText)) {
+                    is LocationInputResult.Valid -> fetchWeather(result.location)
+                    is LocationInputResult.Invalid -> {
+                        latitudeError = result.latitudeError
+                        longitudeError = result.longitudeError
+                    }
+                }
+            },
+            onDismiss = { showWeatherDialog = false },
+        )
+    }
 
     if (showDatePicker) {
         val datePickerState =
@@ -671,92 +793,33 @@ fun EntryDetailsScreen(
             HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = weatherCondition,
-                    onValueChange = { weatherCondition = it },
-                    enabled = isHydrated,
-                    label = { Text("Condition") },
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                OutlinedTextField(
-                    value = if (minTemp != null && maxTemp != null) "$minTemp / $maxTemp" else "",
-                    onValueChange = { },
-                    label = { Text("Min/Max Temp") },
-                    modifier = Modifier.weight(1f),
-                    readOnly = true,
-                )
-                IconButton(
-                    enabled = isHydrated,
-                    onClick = {
-                        scope.launch {
-                            try {
-                                val location = Location(0.0, 0.0) // TODO: Get actual location @SmilingPixel
-                                Logger.w("EntryDetailsScreen", "Using hardcoded location: $location")
-                                val targetDate =
-                                    entry?.createdAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date
-                                        ?: Clock.System
-                                            .now()
-                                            .toLocalDateTime(TimeZone.currentSystemDefault())
-                                            .date
-
-                                val start =
-                                    LocalDateTime(
-                                        targetDate,
-                                        LocalTime(5, 0),
-                                    ).toInstant(TimeZone.currentSystemDefault())
-                                val end =
-                                    LocalDateTime(
-                                        targetDate,
-                                        LocalTime(23, 59),
-                                    ).toInstant(TimeZone.currentSystemDefault())
-
-                                val now = Clock.System.now()
-                                val todayStart =
-                                    LocalDateTime(
-                                        now.toLocalDateTime(TimeZone.currentSystemDefault()).date,
-                                        LocalTime(0, 0),
-                                    ).toInstant(TimeZone.currentSystemDefault())
-
-                                val hourly =
-                                    if (start < todayStart) {
-                                        weatherClient.getHourlyHistory(location, start, end)
-                                    } else {
-                                        weatherClient.getHourlyForecast(location)
-                                    }
-
-                                if (hourly.isNotEmpty()) {
-                                    // Filter for the relevant time window if forecast returns more
-                                    val relevant = hourly.filter { it.startTime >= start && it.endTime <= end }
-                                    if (relevant.isNotEmpty()) {
-                                        minTemp = relevant.minOf { it.minTemperature }
-                                        maxTemp = relevant.maxOf { it.maxTemperature }
-                                        // Simple condition aggregation: take the most frequent or just the
-                                        // first/middle?
-                                        // Let's take the one at noon or middle of list
-                                        weatherCondition = relevant[relevant.size / 2].condition
-                                    } else if (hourly.isNotEmpty()) {
-                                        // Fallback if filter fails (e.g. forecast boundaries)
-                                        minTemp = hourly.minOf { it.minTemperature }
-                                        maxTemp = hourly.maxOf { it.maxTemperature }
-                                        weatherCondition = hourly[hourly.size / 2].condition
-                                    }
-                                } else {
-                                    // Fallback to current weather if hourly fails or returns empty
-                                    val current = weatherClient.getWeather(location)
-                                    weatherCondition = current.condition
-                                    minTemp = current.temperature
-                                    maxTemp = current.temperature
-                                }
-                            } catch (e: Exception) {
-                                // TODO: Show error to user @SmilingPixel
-                                Logger.e("EntryDetailsScreen", "Weather fetch failed: $e")
-                            }
-                        }
-                    },
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh Weather")
+            val hasWeather = weatherCondition.isNotBlank() || minTemp != null || maxTemp != null
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Weather", style = MaterialTheme.typography.titleSmall)
+                    if (hasWeather) {
+                        WeatherSummaryText(weatherCondition.ifBlank { null }, minTemp, maxTemp)
+                    } else {
+                        Text(
+                            "No weather added",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                TextButton(onClick = { openWeatherDialog() }, enabled = isHydrated) {
+                    Text(if (hasWeather) "Replace" else "Add weather")
+                }
+                if (hasWeather) {
+                    TextButton(
+                        enabled = isHydrated,
+                        onClick = { applyWeather(emptyWeatherValues()) },
+                    ) {
+                        Text("Remove")
+                    }
                 }
             }
 
@@ -839,13 +902,15 @@ fun EntryDetailsScreen(
             EntryAttachmentStrip(files = attachedMoments, editable = false)
             if (attachedMoments.isNotEmpty()) Spacer(modifier = Modifier.height(12.dp))
 
-            if (displayedEntry.weatherCondition != null) {
-                val weatherText =
-                    "Weather: ${displayedEntry.weatherCondition}, Temp: ${displayedEntry.minTemperature}°C - " +
-                        "${displayedEntry.maxTemperature}°C"
-                Text(
-                    text = weatherText,
-                    style = MaterialTheme.typography.bodySmall,
+            if (
+                !displayedEntry.weatherCondition.isNullOrBlank() ||
+                displayedEntry.minTemperature != null ||
+                displayedEntry.maxTemperature != null
+            ) {
+                WeatherSummaryText(
+                    condition = displayedEntry.weatherCondition,
+                    minTemperature = displayedEntry.minTemperature,
+                    maxTemperature = displayedEntry.maxTemperature,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
             }
@@ -868,6 +933,144 @@ fun EntryDetailsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun WeatherSummaryText(
+    condition: String?,
+    minTemperature: Double?,
+    maxTemperature: Double?,
+) {
+    val parts =
+        buildList {
+            condition?.takeIf { it.isNotBlank() }?.let(::add)
+            when {
+                minTemperature != null && maxTemperature != null -> add("$minTemperature°C – $maxTemperature°C")
+                minTemperature != null -> add("Minimum $minTemperature°C")
+                maxTemperature != null -> add("Maximum $maxTemperature°C")
+            }
+        }
+    Text(
+        text = parts.joinToString(" · "),
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
+private fun WeatherLocationDialog(
+    targetDate: LocalDate,
+    state: WeatherDialogState,
+    supportsCurrentLocation: Boolean,
+    latitude: String,
+    longitude: String,
+    latitudeError: String?,
+    longitudeError: String?,
+    onLatitudeChange: (String) -> Unit,
+    onLongitudeChange: (String) -> Unit,
+    onUseCurrentLocation: () -> Unit,
+    onFetchManual: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val isLoading = state == WeatherDialogState.LOADING
+    val inputsEnabled = !isLoading && state != WeatherDialogState.API_KEY_MISSING
+
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = { Text("Add weather") },
+        text = {
+            Column {
+                Text(
+                    "MarkDay needs a coordinate to retrieve weather for $targetDate. " +
+                        "The coordinate is used for this lookup only and is not saved.",
+                )
+                Spacer(Modifier.height(12.dp))
+
+                when (state) {
+                    WeatherDialogState.LOADING -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Loading weather…")
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    WeatherDialogState.API_KEY_MISSING -> {
+                        WeatherDialogMessage("Add a Google Weather API key in Settings before adding weather.")
+                    }
+                    WeatherDialogState.PERMISSION_DENIED -> {
+                        WeatherDialogMessage("Location permission was denied. You can enter coordinates manually.")
+                    }
+                    WeatherDialogState.UNAVAILABLE -> {
+                        WeatherDialogMessage("Weather is unavailable for this location and date. Try again later.")
+                    }
+                    WeatherDialogState.READY -> Unit
+                }
+
+                if (supportsCurrentLocation) {
+                    Button(
+                        onClick = onUseCurrentLocation,
+                        enabled = inputsEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Use current location")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text("Or enter coordinates", style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                // TODO: Add city selection and resolve/display a human-readable location in a future iteration.
+                OutlinedTextField(
+                    value = latitude,
+                    onValueChange = onLatitudeChange,
+                    enabled = inputsEnabled,
+                    isError = latitudeError != null,
+                    label = { Text("Latitude") },
+                    supportingText = latitudeError?.let { error -> ({ Text(error) }) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = longitude,
+                    onValueChange = onLongitudeChange,
+                    enabled = inputsEnabled,
+                    isError = longitudeError != null,
+                    label = { Text("Longitude") },
+                    supportingText = longitudeError?.let { error -> ({ Text(error) }) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onFetchManual, enabled = inputsEnabled) {
+                Text("Fetch weather")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+private fun WeatherDialogMessage(message: String) {
+    Text(
+        text = message,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error,
+    )
+    Spacer(Modifier.height(12.dp))
+}
+
+private enum class WeatherDialogState {
+    READY,
+    LOADING,
+    API_KEY_MISSING,
+    PERMISSION_DENIED,
+    UNAVAILABLE,
 }
 
 private data class EntryFormSnapshot(
