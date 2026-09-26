@@ -43,7 +43,12 @@ class FileMetadataDaoImpl(
     ) = roomDao.replaceLinksForEntry(entrySyncId, fileIds)
 
     override suspend fun restoreLinks(links: List<MomentEntryLink>) {
-        roomDao.insertLinks(links.map { io.github.smiling_pixel.model.RoomMomentEntryLink(it.fileId, it.entrySyncId) })
+        roomDao.insertLinks(
+            links.map {
+                io.github.smiling_pixel.model
+                    .RoomMomentEntryLink(it.fileId, it.entrySyncId)
+            },
+        )
     }
 
     override suspend fun deleteLinksForEntry(entrySyncId: String) = roomDao.deleteLinksForEntry(entrySyncId)
