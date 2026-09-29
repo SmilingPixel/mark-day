@@ -9,6 +9,13 @@ import kotlin.time.Clock
 
 class MockWeatherClientTest {
     @Test
+    fun testConfiguration() =
+        runTest {
+            assertTrue(MockWeatherClient().isConfigured())
+            assertTrue(!MockWeatherClient(configured = false).isConfigured())
+        }
+
+    @Test
     fun testGetWeather() =
         runTest {
             val client = MockWeatherClient()
