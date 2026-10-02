@@ -5,7 +5,16 @@ import io.github.smiling_pixel.model.Location
 import io.github.smiling_pixel.model.WeatherInfo
 import kotlin.time.Instant
 
-class MockWeatherClient : WeatherClient {
+/**
+ * Simple configurable weather client used by tests and previews.
+ *
+ * @param configured Whether this client should report that its required configuration is present.
+ */
+class MockWeatherClient(
+    private val configured: Boolean = true,
+) : WeatherClient {
+    override suspend fun isConfigured(): Boolean = configured
+
     override suspend fun getWeather(location: Location): WeatherInfo =
         WeatherInfo(
             temperature = 20.0,

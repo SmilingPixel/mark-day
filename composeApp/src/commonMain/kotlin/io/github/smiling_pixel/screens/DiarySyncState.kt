@@ -2,9 +2,9 @@ package io.github.smiling_pixel.screens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import io.github.smiling_pixel.client.CloudDriveClient
 import io.github.smiling_pixel.client.getCloudDriveClient
@@ -76,7 +76,13 @@ internal class DiarySyncState(
             } catch (e: Exception) {
                 if (isLikelyOffline(e)) {
                     availability = SyncAvailability.Offline
-                    onEvent(OperationEvent("You’re offline; local changes are safe and will sync later.", e.message, ::requestSync))
+                    onEvent(
+                        OperationEvent(
+                            "You’re offline; local changes are safe and will sync later.",
+                            e.message,
+                            ::requestSync,
+                        ),
+                    )
                 } else {
                     onEvent(OperationEvent("Sync could not be completed.", e.message, ::requestSync))
                 }
@@ -95,7 +101,10 @@ internal fun isLikelyOffline(error: Throwable): Boolean {
 }
 
 @Composable
-internal fun rememberDiarySyncState(repo: DiaryRepository, onEvent: (OperationEvent) -> Unit): DiarySyncState {
+internal fun rememberDiarySyncState(
+    repo: DiaryRepository,
+    onEvent: (OperationEvent) -> Unit,
+): DiarySyncState {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val state = remember(repo, scope) { DiarySyncState(repo, scope, onEvent) }
     LaunchedEffect(state) { state.refreshAvailability() }
