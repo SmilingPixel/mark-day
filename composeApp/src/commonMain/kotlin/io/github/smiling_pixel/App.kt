@@ -6,118 +6,397 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.navDeepLink
+import androidx.navigation.toRoute
+import coil3.compose.setSingletonImageLoaderFactory
+import io.github.smiling_pixel.client.GoogleWeatherClient
 import io.github.smiling_pixel.database.DiaryRepository
 import io.github.smiling_pixel.database.InMemoryDiaryDao
+import io.github.smiling_pixel.database.InMemoryFileMetadataDao
+import io.github.smiling_pixel.draft.EditorExitGuard
+import io.github.smiling_pixel.draft.EntryDraftKey
+import io.github.smiling_pixel.draft.EntryDraftRepository
+import io.github.smiling_pixel.draft.InMemoryEntryDraftRepository
+import io.github.smiling_pixel.draft.PlatformDraftExitProtection
+import io.github.smiling_pixel.draft.getEntryDraftRepository
 import io.github.smiling_pixel.filesystem.FileRepository
 import io.github.smiling_pixel.filesystem.InMemoryFileManager
-import io.github.smiling_pixel.database.InMemoryFileMetadataDao
-import io.github.smiling_pixel.client.GoogleWeatherClient
-import io.github.smiling_pixel.theme.ThemeMode
+import io.github.smiling_pixel.model.DiaryEntry
+import io.github.smiling_pixel.model.MomentEntryLink
 import io.github.smiling_pixel.preference.getSettingsRepository
-import io.github.smiling_pixel.theme.MarkDayTheme
 import io.github.smiling_pixel.screens.EntriesScreen
-import io.github.smiling_pixel.screens.EntryDetailsScreen
 import io.github.smiling_pixel.screens.InsightsScreen
 import io.github.smiling_pixel.screens.MomentsScreen
+import io.github.smiling_pixel.screens.OperationEvent
 import io.github.smiling_pixel.screens.ProfileScreen
+import io.github.smiling_pixel.screens.SearchScreen
 import io.github.smiling_pixel.screens.SettingsScreen
-import coil3.compose.setSingletonImageLoaderFactory
+import io.github.smiling_pixel.screens.rememberDiarySyncState
+import io.github.smiling_pixel.sync.startAutoSync
+import io.github.smiling_pixel.theme.MarkDayTheme
+import io.github.smiling_pixel.theme.ThemeMode
+import io.github.smiling_pixel.util.Logger
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
-@Serializable
-sealed interface AppRoute
-
-@Serializable
-object EntriesRoute : AppRoute
-
-@Serializable
-object MomentsRoute : AppRoute
-
-@Serializable
-object InsightsRoute : AppRoute
-
-@Serializable
-object SettingsRoute : AppRoute
-
-@Serializable
-object ProfileRoute : AppRoute
-
+/**
+ * Displays the MarkDay application.
+ *
+ * @param providedRepo Optional diary repository used by hosts, tests, and previews.
+ * @param providedFileRepo Optional file repository used by hosts, tests, and previews.
+ * @param providedDraftRepository Optional durable draft repository used by hosts, tests, and previews.
+ * @param onExitGuardChange Reports the active editor guard to a platform window host.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(
     providedRepo: io.github.smiling_pixel.database.DiaryRepository? = null,
-    providedFileRepo: FileRepository? = null
+    providedFileRepo: FileRepository? = null,
+    providedDraftRepository: EntryDraftRepository? = null,
+    onExitGuardChange: (EditorExitGuard?) -> Unit = {},
 ) {
     // Memoize the image loader factory to prevent it from being re-created on every recomposition.
-    // While setSingletonImageLoaderFactory is a @Composable, we use remember here to ensure the 
+    // While setSingletonImageLoaderFactory is a @Composable, we use remember here to ensure the
     // factory lambda remains stable across theme changes and other UI updates.
-    val imageLoaderFactory = remember {
-        { context: coil3.PlatformContext -> getAsyncImageLoader(context) }
-    }
+    val imageLoaderFactory =
+        remember {
+            { context: coil3.PlatformContext -> getAsyncImageLoader(context) }
+        }
     setSingletonImageLoaderFactory(imageLoaderFactory)
 
     val settingsRepository = remember { getSettingsRepository() }
     val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
     val isPureBlackEnabled by settingsRepository.isPureBlackEnabled.collectAsState(initial = null)
+    val isCloudSyncEnabled by settingsRepository.isCloudSyncEnabled.collectAsState(initial = false)
+    val logLevel by settingsRepository.logLevel.collectAsState(initial = null)
+    val isLogPersistenceEnabled by settingsRepository.isLogPersistenceEnabled.collectAsState(initial = null)
 
-    if (themeMode == null || isPureBlackEnabled == null) {
+    if (themeMode == null || isPureBlackEnabled == null || logLevel == null || isLogPersistenceEnabled == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("MarkDay", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
+                CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
+            }
+        }
         return
+    }
+
+    LaunchedEffect(logLevel, isLogPersistenceEnabled) {
+        Logger.setLogLevel(logLevel!!)
+        Logger.setPersistenceEnabled(isLogPersistenceEnabled!!)
     }
 
     val useDarkTheme = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
     MarkDayTheme(
         useDarkTheme = useDarkTheme,
-        isPureBlack = isPureBlackEnabled!!
+        isPureBlack = isPureBlackEnabled!!,
     ) {
         val repo = providedRepo ?: remember { DiaryRepository(InMemoryDiaryDao()) }
-        val fileRepo = providedFileRepo ?: remember { 
-            FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao()) 
-        }
+        val fileRepo =
+            providedFileRepo ?: remember {
+                FileRepository(InMemoryFileManager(), InMemoryFileMetadataDao())
+            }
+        val draftRepository =
+            providedDraftRepository ?: remember(providedRepo) {
+                if (providedRepo == null) InMemoryEntryDraftRepository() else getEntryDraftRepository()
+            }
         val weatherClient = remember { GoogleWeatherClient(settingsRepository) }
         val scope = rememberCoroutineScope()
+        var pendingOperation by remember { mutableStateOf<OperationEvent?>(null) }
+        var detailsOperation by remember { mutableStateOf<OperationEvent?>(null) }
+        val diarySyncState = rememberDiarySyncState(repo) { pendingOperation = it }
+        val snackbarHostState = remember { SnackbarHostState() }
         val navController = rememberNavController()
-        var selected by remember { mutableStateOf<AppRoute>(EntriesRoute) }
-        // remember previous to return from profile
-        var previous by remember { mutableStateOf<AppRoute>(EntriesRoute) }
+        val currentBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = currentBackStackEntry?.toAppRoute() ?: EntriesRoute
+        val selectedTab = currentRoute.toAppTab()
 
         var isSelectionMode by remember { mutableStateOf(false) }
         var selectedIds by remember { mutableStateOf(emptySet<String>()) }
+        var editorExitGuard by remember { mutableStateOf<EditorExitGuard?>(null) }
+        var showUnsafeNavigationDialog by remember { mutableStateOf(false) }
+        var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
+        var showDeleteConfirmation by remember { mutableStateOf(false) }
+        var pendingDeletedEntries by remember { mutableStateOf<List<DiaryEntry>>(emptyList()) }
+        var pendingDeletedEntryLinks by remember { mutableStateOf<List<MomentEntryLink>>(emptyList()) }
+        var restoredNewDraft by rememberSaveable { mutableStateOf(false) }
+        var undoToken by remember { mutableStateOf(0) }
+        var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
 
-        LaunchedEffect(selected) {
+        DisposableEffect(repo) {
+            val autoSyncJob = startAutoSync(repo)
+            onDispose { autoSyncJob?.cancel() }
+        }
+
+        LaunchedEffect(draftRepository) {
+            if (restoredNewDraft) return@LaunchedEffect
+            restoredNewDraft = true
+            try {
+                val draft = draftRepository.load(EntryDraftKey.NewEntry)
+                if (draft != null && repo.getAll().none { it.syncId == draft.targetSyncId }) {
+                    navController.navigate(NewEntryRoute()) {
+                        launchSingleTop = true
+                    }
+                } else if (draft != null) {
+                    // The entry commit may have succeeded just before draft cleanup was interrupted.
+                    draftRepository.delete(EntryDraftKey.NewEntry)
+                }
+            } catch (e: Exception) {
+                Logger.e("App", "New-entry draft recovery failed: $e")
+            }
+        }
+        detailsOperation?.let { event ->
+            AlertDialog(
+                onDismissRequest = { detailsOperation = null },
+                title = { Text("Details") },
+                text = { Text(event.technicalDetails ?: "No additional details are available.") },
+                confirmButton = {
+                    if (event.retry != null) {
+                        TextButton(
+                            onClick = {
+                                detailsOperation = null
+                                event.retry.invoke()
+                            },
+                        ) { Text("Retry") }
+                    } else {
+                        TextButton(onClick = { detailsOperation = null }) { Text("Close") }
+                    }
+                },
+                dismissButton = {
+                    if (event.retry != null) {
+                        TextButton(onClick = { detailsOperation = null }) { Text("Close") }
+                    }
+                },
+            )
+        }
+
+        fun requestNavigation(action: () -> Unit) {
+            val guard = editorExitGuard
+            if (guard?.hasUnpersistedChanges != true) {
+                action()
+                return
+            }
+            // Bypass the remaining debounce before changing destinations. Only persistence failure produces a dialog;
+            // already-saved drafts are intentionally retained and navigation remains silent.
+            scope.launch {
+                if (guard.persistLatest()) {
+                    action()
+                } else {
+                    pendingNavigation = action
+                    showUnsafeNavigationDialog = true
+                }
+            }
+        }
+
+        fun navigateToTab(route: AppRoute) {
+            requestNavigation {
+                navController.navigate(route) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
+
+        fun navigateToEntry(syncId: String, origin: AppTab) {
+            requestNavigation {
+                if (currentRoute is EntryDetailsRoute && currentRoute.origin == origin) {
+                    // A wide list/detail pane replaces its selection instead of creating a detail-history entry.
+                    navController.popBackStack()
+                }
+                navController.navigate(EntryDetailsRoute(syncId, origin)) {
+                    launchSingleTop = true
+                }
+            }
+        }
+
+        fun navigateTo(route: AppRoute) {
+            requestNavigation {
+                navController.navigate(route) { launchSingleTop = true }
+            }
+        }
+
+        PlatformDraftExitProtection(
+            guard = editorExitGuard,
+            onBackRequest = { requestNavigation { navController.popBackStack() } },
+        )
+        // Desktop owns its Window outside this composable, so publish the same guard used by in-app navigation to the
+        // host. DisposableEffect also clears stale callbacks when the Entries destination leaves composition.
+        DisposableEffect(editorExitGuard) {
+            onExitGuardChange(editorExitGuard)
+            onDispose { onExitGuardChange(null) }
+        }
+
+        if (showUnsafeNavigationDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showUnsafeNavigationDialog = false
+                    pendingNavigation = null
+                },
+                title = { Text("Draft not saved") },
+                text = { Text("The latest changes couldn’t be saved. Leaving now may lose them.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val navigation = pendingNavigation
+                        showUnsafeNavigationDialog = false
+                        pendingNavigation = null
+                        navigation?.invoke()
+                    }) { Text("Leave anyway") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showUnsafeNavigationDialog = false
+                        pendingNavigation = null
+                    }) { Text("Stay") }
+                },
+            )
+        }
+
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Delete ${selectedIds.size} entries?") },
+                text = {
+                    Text(
+                        if (isCloudSyncEnabled) {
+                            "Cloud Sync is enabled. This deletion will also propagate to Google Drive on the next sync."
+                        } else {
+                            "Cloud Sync is disabled. This deletion is local for now, but it may propagate to Google " +
+                                "Drive if Cloud Sync is enabled later."
+                        },
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirmation = false
+                            scope.launch {
+                                val entriesToDelete = repo.getAll().filter { it.syncId in selectedIds }
+                                if (entriesToDelete.isEmpty()) {
+                                    isSelectionMode = false
+                                    selectedIds = emptySet()
+                                    return@launch
+                                }
+
+                                val linksToRestore =
+                                    fileRepo.snapshotLinksForEntries(
+                                        entriesToDelete.mapTo(mutableSetOf()) { it.syncId },
+                                    )
+                                entriesToDelete.forEach { repo.delete(it) }
+                                isSelectionMode = false
+                                selectedIds = emptySet()
+                                pendingDeletedEntries = entriesToDelete
+                                pendingDeletedEntryLinks = linksToRestore
+                                undoToken += 1
+                                val token = undoToken
+                                undoSnackbarJob?.cancel()
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                undoSnackbarJob =
+                                    scope.launch {
+                                        val result =
+                                            snackbarHostState.showSnackbar(
+                                                message = "${entriesToDelete.size} entries deleted",
+                                                actionLabel = "Undo",
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                        if (result == SnackbarResult.ActionPerformed && token == undoToken) {
+                                            pendingDeletedEntries.forEach { repo.restore(it) }
+                                            fileRepo.restoreLinks(pendingDeletedEntryLinks)
+                                        }
+                                        if (token == undoToken) {
+                                            pendingDeletedEntries = emptyList()
+                                            pendingDeletedEntryLinks = emptyList()
+                                        }
+                                    }
+                            }
+                        },
+                    ) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
+                },
+            )
+        }
+
+        LaunchedEffect(selectedTab) {
             isSelectionMode = false
             selectedIds = emptySet()
         }
 
         Scaffold(
-            modifier = Modifier
-                .safeContentPadding()
-                .fillMaxSize(),
+            modifier =
+                Modifier
+                    .safeContentPadding()
+                    .fillMaxSize(),
+            snackbarHost = {
+                SnackbarHost(snackbarHostState)
+                pendingOperation?.let { event ->
+                    LaunchedEffect(event) {
+                        val actionLabel =
+                            event.actionLabel ?: when {
+                                event.technicalDetails != null -> "Details"
+                                event.retry != null -> "Retry"
+                                else -> null
+                            }
+                        val result =
+                            snackbarHostState.showSnackbar(
+                                message = event.message,
+                                actionLabel = actionLabel,
+                                duration = SnackbarDuration.Long,
+                            )
+                        when (result) {
+                            SnackbarResult.ActionPerformed -> {
+                                when {
+                                    event.action != null -> event.action.invoke()
+                                    event.technicalDetails != null -> detailsOperation = event
+                                    else -> event.retry?.invoke()
+                                }
+                            }
+                            SnackbarResult.Dismissed -> event.onDismiss?.invoke()
+                        }
+                        pendingOperation = null
+                    }
+                }
+            },
             topBar = {
                 if (isSelectionMode) {
                     CenterAlignedTopAppBar(
@@ -132,112 +411,183 @@ fun App(
                         },
                         actions = {
                             IconButton(onClick = {
-                                scope.launch {
-                                    val currentEntries = repo.entries.value
-                                    val entriesToDelete = currentEntries.filter { it.syncId in selectedIds }
-                                    entriesToDelete.forEach { repo.delete(it) }
-                                    isSelectionMode = false
-                                    selectedIds = emptySet()
-                                }
+                                showDeleteConfirmation = true
                             }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete Selected")
                             }
-                        }
+                        },
                     )
                 } else {
                     CenterAlignedTopAppBar(
                         title = {
-                            val title = when (selected) {
-                                EntriesRoute -> "Entries"
-                                MomentsRoute -> "Moments"
-                                InsightsRoute -> "Insights"
-                                SettingsRoute -> "Settings"
-                                ProfileRoute -> "Profile"
-                            }
+                            val title =
+                                when (currentRoute) {
+                                    EntriesRoute -> "Entries"
+                                    SearchRoute -> "Search"
+                                    MomentsRoute -> "Moments"
+                                    InsightsRoute -> "Insights"
+                                    SettingsRoute -> "Settings"
+                                    is ProfileRoute -> "Profile"
+                                    is EntryDetailsRoute -> "Entry"
+                                    is NewEntryRoute -> "New Entry"
+                                }
                             Text(title)
                         },
-                        actions = {
-                            if (selected != ProfileRoute) {
+                        navigationIcon = {
+                            if (currentRoute == SearchRoute ||
+                                (currentRoute !is EntriesRoute && currentRoute !is MomentsRoute &&
+                                    currentRoute !is InsightsRoute && currentRoute !is SettingsRoute)
+                            ) {
                                 IconButton(onClick = {
-                                    previous = selected
-                                    selected = ProfileRoute
-                                    navController.navigate(ProfileRoute)
+                                    requestNavigation { navController.popBackStack() }
+                                }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                }
+                            }
+                        },
+                        actions = {
+                            if (selectedTab == AppTab.ENTRIES && currentRoute == EntriesRoute) {
+                                IconButton(onClick = {
+                                    navigateToTab(SearchRoute)
+                                }) {
+                                    Icon(Icons.Default.Search, contentDescription = "Search entries")
+                                }
+                            }
+                            if (currentRoute !is ProfileRoute && currentRoute !is SearchRoute) {
+                                IconButton(onClick = {
+                                    navigateTo(ProfileRoute(selectedTab))
                                 }) {
                                     Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                                 }
                             }
-                        }
+                        },
                     )
                 }
             },
             bottomBar = {
                 NavigationBar {
                     NavigationBarItem(
-                        selected = selected == EntriesRoute,
+                        selected = selectedTab == AppTab.ENTRIES || selectedTab == AppTab.SEARCH,
                         onClick = {
-                            selected = EntriesRoute
-                            navController.navigate(EntriesRoute)
+                            navigateToTab(EntriesRoute)
                         },
                         icon = { Text("E") },
-                        label = { Text("Entries") }
+                        label = { Text("Entries") },
                     )
                     NavigationBarItem(
-                        selected = selected == MomentsRoute,
-                        onClick = {
-                            selected = MomentsRoute
-                            navController.navigate(MomentsRoute)
-                        },
+                        selected = selectedTab == AppTab.MOMENTS,
+                        onClick = { navigateToTab(MomentsRoute) },
                         icon = { Text("M") },
-                        label = { Text("Moments") }
+                        label = { Text("Moments") },
                     )
                     NavigationBarItem(
-                        selected = selected == InsightsRoute,
-                        onClick = {
-                            selected = InsightsRoute
-                            navController.navigate(InsightsRoute)
-                        },
+                        selected = selectedTab == AppTab.INSIGHTS,
+                        onClick = { navigateToTab(InsightsRoute) },
                         icon = { Text("I") },
-                        label = { Text("Insights") }
+                        label = { Text("Insights") },
                     )
                     NavigationBarItem(
-                        selected = selected == SettingsRoute,
-                        onClick = {
-                            selected = SettingsRoute
-                            navController.navigate(SettingsRoute)
-                        },
+                        selected = selectedTab == AppTab.SETTINGS,
+                        onClick = { navigateToTab(SettingsRoute) },
                         icon = { Text("S") },
-                        label = { Text("Settings") }
+                        label = { Text("Settings") },
                     )
                 }
-            }
+            },
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding).fillMaxSize(), contentAlignment = Alignment.Center) {
                 NavHost(navController = navController, startDestination = EntriesRoute) {
                     composable<EntriesRoute> {
                         EntriesScreen(
                             repo = repo,
-                            weatherClient = weatherClient,
                             isSelectionMode = isSelectionMode,
                             selectedIds = selectedIds,
                             onSelectionModeChange = { isSelectionMode = it },
-                            onSelectionChange = { selectedIds = it }
+                            onSelectionChange = { selectedIds = it },
+                            isSyncing = diarySyncState.isSyncing,
+                            onSyncRequest = diarySyncState::requestSync,
+                            syncAvailability = diarySyncState.availability,
+                            onOpenSettings = {
+                                navigateToTab(SettingsRoute)
+                            },
+                            onOpenEntry = { navigateToEntry(it, AppTab.ENTRIES) },
+                            onCreateEntry = { navigateTo(NewEntryRoute()) },
+                        )
+                    }
+                    composable<SearchRoute> {
+                        SearchScreen(
+                            repo = repo,
+                            onOpenEntry = { navigateToEntry(it, AppTab.SEARCH) },
                         )
                     }
                     composable<MomentsRoute> {
-                        MomentsScreen(fileRepo = fileRepo)
+                        MomentsScreen(
+                            fileRepo = fileRepo,
+                            diaryEntries = repo.entries.value,
+                            onOpenEntry = { entrySyncId -> navigateToEntry(entrySyncId, AppTab.MOMENTS) },
+                        ) { pendingOperation = it }
                     }
                     composable<InsightsRoute> {
                         InsightsScreen()
                     }
                     composable<SettingsRoute> {
-                        SettingsScreen()
+                        SettingsScreen(repo = repo) { pendingOperation = it }
                     }
-                    composable<ProfileRoute> { backStackEntry ->
+                    composable<ProfileRoute> {
                         ProfileScreen(onBack = {
-                            // return to previous selection when profile is dismissed
-                            selected = previous
-                            navController.popBackStack()
+                            requestNavigation { navController.popBackStack() }
                         })
+                    }
+                    composable<EntryDetailsRoute>(
+                        deepLinks = listOf(
+                            navDeepLink {
+                                uriPattern = "markday://entry/{syncId}"
+                            },
+                        ),
+                    ) { backStackEntry ->
+                        val route = backStackEntry.toRoute<EntryDetailsRoute>()
+                        EntryDetailsDestination(
+                            route = route,
+                            repo = repo,
+                            fileRepo = fileRepo,
+                            draftRepository = draftRepository,
+                            weatherClient = weatherClient,
+                            isSyncing = diarySyncState.isSyncing,
+                            onSyncRequest = diarySyncState::requestSync,
+                            onExitGuardChange = { editorExitGuard = it },
+                            onBack = { requestNavigation { navController.popBackStack() } },
+                            onOpenEntry = { navigateToEntry(it, AppTab.ENTRIES) },
+                            onSave = { saved, momentIds ->
+                                repo.update(saved)
+                                fileRepo.replaceLinksForEntry(saved.syncId, momentIds)
+                                saved
+                            },
+                        )
+                    }
+                    composable<NewEntryRoute> { backStackEntry ->
+                        val route = backStackEntry.toRoute<NewEntryRoute>()
+                        EntryDetailsDestination(
+                            route = route,
+                            repo = repo,
+                            fileRepo = fileRepo,
+                            draftRepository = draftRepository,
+                            weatherClient = weatherClient,
+                            isSyncing = diarySyncState.isSyncing,
+                            onSyncRequest = diarySyncState::requestSync,
+                            onExitGuardChange = { editorExitGuard = it },
+                            onBack = { requestNavigation { navController.popBackStack() } },
+                            onOpenEntry = { navigateToEntry(it, AppTab.ENTRIES) },
+                            onSave = { saved, momentIds ->
+                                val persisted = saved.copy(id = repo.insert(saved))
+                                fileRepo.replaceLinksForEntry(persisted.syncId, momentIds)
+                                // Replace the transient new-entry route with the canonical stable-ID destination.
+                                navController.navigate(EntryDetailsRoute(persisted.syncId, route.origin)) {
+                                    popUpTo<NewEntryRoute> { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                                persisted
+                            },
+                        )
                     }
                 }
             }

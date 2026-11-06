@@ -22,5 +22,5 @@ enum class ThemeMode {
     /**
      * Forces the application to use the dark theme, regardless of the system settings.
      */
-    DARK
+    DARK,
 }

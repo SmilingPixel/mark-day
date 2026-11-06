@@ -7,19 +7,23 @@ data class DriveFile(
     val id: String,
     val name: String,
     val mimeType: String,
-    val isFolder: Boolean
+    val isFolder: Boolean,
 )
 
 data class UserInfo(
     val name: String,
     val email: String,
-    val photoUrl: String? = null
+    val photoUrl: String? = null,
 )
 
 /**
  * Client interface for accessing and managing files on cloud drives.
  */
 interface CloudDriveClient {
+    /** Whether this platform can use the cloud-drive provider. */
+    val isSupported: Boolean
+        get() = true
+
     companion object {
         const val MIME_TYPE_FOLDER = "application/vnd.google-apps.folder"
     }
@@ -39,7 +43,12 @@ interface CloudDriveClient {
      * @param parentId The ID of the parent folder. If null, creates in the root.
      * @return The created [DriveFile].
      */
-    suspend fun createFile(name: String, content: ByteArray, mimeType: String, parentId: String? = null): DriveFile
+    suspend fun createFile(
+        name: String,
+        content: ByteArray,
+        mimeType: String,
+        parentId: String? = null,
+    ): DriveFile
 
     /**
      * Creates a new folder.
@@ -47,7 +56,10 @@ interface CloudDriveClient {
      * @param parentId The ID of the parent folder. If null, creates in the root.
      * @return The created folder as a [DriveFile].
      */
-    suspend fun createFolder(name: String, parentId: String? = null): DriveFile
+    suspend fun createFolder(
+        name: String,
+        parentId: String? = null,
+    ): DriveFile
 
     /**
      * Deletes a file or folder.
@@ -68,7 +80,10 @@ interface CloudDriveClient {
      * @param content The new content of the file.
      * @return The updated [DriveFile].
      */
-    suspend fun updateFile(fileId: String, content: ByteArray): DriveFile
+    suspend fun updateFile(
+        fileId: String,
+        content: ByteArray,
+    ): DriveFile
 
     /**
      * Checks whether the client is currently authorized to access the cloud drive.
@@ -107,4 +122,3 @@ interface CloudDriveClient {
 }
 
 expect fun getCloudDriveClient(): CloudDriveClient
-

@@ -1,7 +1,7 @@
 package io.github.smiling_pixel.model
 
-import kotlin.time.Instant
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 /**
  * Represents the weather information for a specific location.
@@ -20,7 +20,7 @@ data class WeatherInfo(
     val humidity: Int,
     val windSpeed: Double,
     val locationName: String,
-    val iconUrl: String? = null
+    val iconUrl: String? = null,
 )
 
 /**
@@ -44,7 +44,7 @@ data class IntervalWeatherInfo(
     val condition: String,
     val humidity: Int,
     val windSpeed: Double,
-    val iconUrl: String? = null
+    val iconUrl: String? = null,
 )
 
 /**
@@ -56,5 +56,5 @@ data class IntervalWeatherInfo(
 @Serializable
 data class Location(
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
 )

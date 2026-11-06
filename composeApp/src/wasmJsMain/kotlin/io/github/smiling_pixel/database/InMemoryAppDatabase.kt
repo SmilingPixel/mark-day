@@ -5,5 +5,6 @@ class InMemoryAppDatabase : IAppDatabase {
     private val fileDao = InMemoryFileMetadataDao()
 
     override fun diaryDao(): IDiaryDao = dao
+
     override fun fileMetadataDao(): IFileMetadataDao = fileDao
 }

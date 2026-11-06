@@ -1,28 +1,42 @@
 package io.github.smiling_pixel.preference
 
 import io.github.smiling_pixel.theme.ThemeMode
+import io.github.smiling_pixel.util.LogLevel
 import kotlinx.browser.localStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class WasmJsSettingsRepository : SettingsRepository {
-    private val _apiKey = MutableStateFlow(localStorage.getItem("weather_api_key"))
+    private val _googleWeatherApiKey = MutableStateFlow(localStorage.getItem("weather_api_key"))
     private val _isCloudSyncEnabled = MutableStateFlow(localStorage.getItem("is_cloud_sync_enabled") == "true")
     private val _isAutoSyncEnabled = MutableStateFlow(localStorage.getItem("is_auto_sync_enabled") == "true")
     private val _cloudSyncPath = MutableStateFlow(localStorage.getItem("cloud_sync_path") ?: "/MarkDay")
     private val _cloudSyncDeletionTombstonesJson =
         MutableStateFlow(localStorage.getItem("cloud_sync_deletion_tombstones_json"))
-    private val _themeMode = MutableStateFlow(
-        localStorage.getItem("theme_mode")?.let {
-            try {
-                ThemeMode.valueOf(it)
-            } catch (e: IllegalArgumentException) {
-                ThemeMode.SYSTEM
-            }
-        } ?: ThemeMode.SYSTEM
-    )
+    private val _themeMode =
+        MutableStateFlow(
+            localStorage.getItem("theme_mode")?.let {
+                try {
+                    ThemeMode.valueOf(it)
+                } catch (e: IllegalArgumentException) {
+                    ThemeMode.SYSTEM
+                }
+            } ?: ThemeMode.SYSTEM,
+        )
     private val _isPureBlackEnabled = MutableStateFlow(localStorage.getItem("is_pure_black_enabled") == "true")
+    private val _logLevel =
+        MutableStateFlow(
+            localStorage.getItem("log_level")?.let {
+                try {
+                    LogLevel.valueOf(it)
+                } catch (e: IllegalArgumentException) {
+                    LogLevel.ERROR
+                }
+            } ?: LogLevel.ERROR,
+        )
+    private val _isLogPersistenceEnabled =
+        MutableStateFlow(localStorage.getItem("is_log_persistence_enabled") == "true")
 
     override val themeMode: Flow<ThemeMode> = _themeMode.asStateFlow()
 
@@ -38,7 +52,7 @@ class WasmJsSettingsRepository : SettingsRepository {
         _isPureBlackEnabled.value = enabled
     }
 
-    override val googleWeatherApiKey: Flow<String?> = _apiKey.asStateFlow()
+    override val googleWeatherApiKey: Flow<String?> = _googleWeatherApiKey.asStateFlow()
 
     override suspend fun setGoogleWeatherApiKey(key: String?) {
         if (key != null) {
@@ -46,7 +60,7 @@ class WasmJsSettingsRepository : SettingsRepository {
         } else {
             localStorage.removeItem("weather_api_key")
         }
-        _apiKey.value = key
+        _googleWeatherApiKey.value = key
     }
 
     override val isCloudSyncEnabled: Flow<Boolean> = _isCloudSyncEnabled.asStateFlow()
@@ -80,6 +94,20 @@ class WasmJsSettingsRepository : SettingsRepository {
             localStorage.setItem("cloud_sync_deletion_tombstones_json", value)
             _cloudSyncDeletionTombstonesJson.value = value
         }
+    }
+
+    override val logLevel: Flow<LogLevel> = _logLevel.asStateFlow()
+
+    override suspend fun setLogLevel(level: LogLevel) {
+        localStorage.setItem("log_level", level.name)
+        _logLevel.value = level
+    }
+
+    override val isLogPersistenceEnabled: Flow<Boolean> = _isLogPersistenceEnabled.asStateFlow()
+
+    override suspend fun setLogPersistenceEnabled(enabled: Boolean) {
+        localStorage.setItem("is_log_persistence_enabled", enabled.toString())
+        _isLogPersistenceEnabled.value = enabled
     }
 }
 

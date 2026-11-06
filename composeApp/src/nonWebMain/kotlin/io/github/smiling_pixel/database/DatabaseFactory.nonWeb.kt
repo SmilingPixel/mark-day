@@ -5,12 +5,10 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-fun getRoomDatabase(
-    builder: RoomDatabase.Builder<AppDatabase>
-): AppDatabase {
-    return builder
-        .fallbackToDestructiveMigration(true) // TODO: maybe a risk here if using destructive migration in production, but for now it simplifies development @SmilingPixel
+fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase =
+    builder
+        // Moments is unreleased, so schema changes may recreate local development databases.
+        .fallbackToDestructiveMigration(true)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .build()
-}

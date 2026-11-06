@@ -10,6 +10,13 @@ import kotlin.time.Instant
  */
 interface WeatherClient {
     /**
+     * Reports whether this client has the configuration required to make weather requests.
+     *
+     * @return `true` when weather requests can be attempted, or `false` when an API key is missing.
+     */
+    suspend fun isConfigured(): Boolean
+
+    /**
      * Fetches the current weather for the given location.
      *
      * @param location The location to fetch weather for.
@@ -34,5 +41,9 @@ interface WeatherClient {
      * @param end The end time of the history range.
      * @return A list of hourly weather info.
      */
-    suspend fun getHourlyHistory(location: Location, start: Instant, end: Instant): List<IntervalWeatherInfo>
+    suspend fun getHourlyHistory(
+        location: Location,
+        start: Instant,
+        end: Instant,
+    ): List<IntervalWeatherInfo>
 }

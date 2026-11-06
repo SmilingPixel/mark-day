@@ -9,7 +9,7 @@ actual fun createDatabase(platformContext: Any?): IAppDatabase {
         Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
-            "app.db"
-        )
+            "app.db",
+        ),
     )
 }

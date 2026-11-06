@@ -8,6 +8,6 @@ actual fun createDatabase(platformContext: Any?): IAppDatabase {
     return getRoomDatabase(
         Room.databaseBuilder<AppDatabase>(
             name = dbFile.absolutePath,
-        )
+        ),
     )
 }
